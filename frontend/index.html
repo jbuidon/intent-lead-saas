@@ -209,6 +209,40 @@
     .fb-person-sub  { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
     .fb-profile-btn { padding: 7px 14px; background: var(--accent2); color: #fff; border-radius: 8px; font-size: 0.78rem; font-weight: 600; font-family: 'Syne', sans-serif; text-decoration: none; transition: all 0.15s; white-space: nowrap; }
     .fb-profile-btn:hover { background: #6fa8ff; transform: translateY(-1px); }
+
+    /* PLATFORM SUB-TABS */
+    .platform-tabs { display: flex; gap: 3px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px; margin-bottom: 28px; flex-wrap: wrap; }
+    .platform-tab { flex: 1; min-width: 120px; padding: 9px 14px; border-radius: 9px; border: none; background: transparent; color: var(--muted2); font-size: 0.82rem; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.15s; text-align: center; white-space: nowrap; }
+    .platform-tab:hover { background: var(--surface2); color: var(--text); }
+    .platform-tab.active { background: var(--surface2); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+    .platform-panel { display: none; }
+    .platform-panel.active { display: block; }
+
+    /* LINKEDIN PASTE UI */
+    .li-form { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-bottom: 20px; }
+    .li-form-title { font-family: 'Syne', sans-serif; font-size: 0.9rem; font-weight: 700; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .li-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .li-row.single { grid-template-columns: 1fr; }
+    .li-input { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 9px 13px; border-radius: 9px; font-size: 0.85rem; font-family: 'DM Mono', monospace; outline: none; transition: border-color 0.2s; width: 100%; }
+    .li-input:focus { border-color: var(--accent); }
+    .li-input::placeholder { color: var(--muted); }
+    .li-textarea { min-height: 100px; resize: vertical; font-size: 0.82rem; line-height: 1.6; }
+    .li-select { cursor: pointer; }
+    .li-add-btn { padding: 10px 20px; background: var(--surface2); border: 1px solid var(--border2); color: var(--text); border-radius: 9px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
+    .li-add-btn:hover { background: var(--border2); }
+    .li-queue { margin-bottom: 20px; }
+    .li-queue-label { font-size: 0.72rem; font-family: 'DM Mono', monospace; color: var(--muted2); margin-bottom: 8px; letter-spacing: 0.05em; }
+    .li-queue-item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 8px; position: relative; }
+    .li-type-tag { font-size: 0.68rem; font-family: 'DM Mono', monospace; padding: 2px 8px; border-radius: 4px; background: rgba(77,139,255,0.12); color: var(--accent2); border: 1px solid rgba(77,139,255,0.2); margin-right: 8px; }
+    .li-person { font-size: 0.82rem; font-weight: 600; color: var(--text); }
+    .li-url-link { font-size: 0.78rem; color: var(--accent2); text-decoration: none; margin-left: 6px; }
+    .li-preview { font-size: 0.78rem; color: var(--muted2); margin-top: 6px; font-family: 'DM Mono', monospace; line-height: 1.5; }
+    .li-remove-btn { position: absolute; top: 10px; right: 12px; background: transparent; border: none; color: var(--muted); font-size: 0.75rem; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+    .li-remove-btn:hover { color: var(--warn); background: rgba(255,107,53,0.1); }
+    .li-score-row { display: flex; align-items: center; gap: 10px; }
+    .li-info-box { background: rgba(77,139,255,0.07); border: 1px solid rgba(77,139,255,0.18); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 22px; font-size: 0.82rem; color: var(--muted2); line-height: 1.7; }
+    .li-info-box strong { color: var(--text); }
+
   </style>
 </head>
 <body>
@@ -307,32 +341,121 @@
       </div>
     </div>
 
-    <!-- ══ PAGE: FACEBOOK GROUPS ══ -->
+    <!-- ══ PAGE: PLATFORMS ══ -->
     <div class="page" id="page-facebook">
-      <div class="fb-info-box">
-        <h3>👥 How to set up Facebook Groups access</h3>
-        <ol>
-          <li>Go to <a href="https://developers.facebook.com" target="_blank">developers.facebook.com</a> → Create App → type "Business"</li>
-          <li>In your app dashboard → Add Product → add <strong>Facebook Login</strong></li>
-          <li>Go to <a href="https://developers.facebook.com/tools/explorer/" target="_blank">Graph API Explorer</a> → select your app</li>
-          <li>Click <strong>Generate Access Token</strong> → add permission: <code>groups_access_member_info</code></li>
-          <li>Copy the token → paste it in <strong>⚙ Settings → Facebook Token</strong></li>
-          <li>Paste your group URLs below (one per line) — you must be a member of each group</li>
-        </ol>
+
+      <!-- Platform sub-tabs -->
+      <div class="platform-tabs">
+        <button class="platform-tab active" id="ptab-fbgroup"  onclick="switchPlatformTab('fbgroup', this)">👥 FB Groups</button>
+        <button class="platform-tab"        id="ptab-fbpage"   onclick="switchPlatformTab('fbpage', this)">📘 FB Pages</button>
+        <button class="platform-tab"        id="ptab-instagram" onclick="switchPlatformTab('instagram', this)">📸 Instagram</button>
+        <button class="platform-tab"        id="ptab-linkedin" onclick="switchPlatformTab('linkedin', this)">💼 LinkedIn</button>
       </div>
 
-      <div class="fb-input-row">
-        <textarea id="fb-groups-input" placeholder="https://www.facebook.com/groups/123456789&#10;https://www.facebook.com/groups/mygroupname&#10;(one group URL per line)"></textarea>
-        <button class="btn-primary" id="fbScanBtn" onclick="scanFacebookGroups()" style="align-self:flex-start;padding:12px 20px">🔍 Scan Groups</button>
+      <!-- ── FB GROUPS panel ── -->
+      <div class="platform-panel active" id="panel-fbgroup">
+        <div class="fb-info-box">
+          <h3>👥 Facebook Groups — scan posts &amp; comments from groups you joined</h3>
+          <ol>
+            <li>Go to <a href="https://developers.facebook.com" target="_blank">developers.facebook.com</a> → Create App → Business</li>
+            <li>Add <strong>Facebook Login</strong> as a product</li>
+            <li>Open <a href="https://developers.facebook.com/tools/explorer/" target="_blank">Graph API Explorer</a> → Generate Access Token → add permission: <code>groups_access_member_info</code></li>
+            <li>Paste the token in <strong>⚙ Settings → Facebook Token</strong></li>
+          </ol>
+        </div>
+        <div class="fb-input-row">
+          <textarea id="fb-groups-input" placeholder="https://www.facebook.com/groups/123456789&#10;https://www.facebook.com/groups/mygroupname&#10;(one URL per line — you must be a member)"></textarea>
+          <button class="btn-primary" id="fbScanBtn" onclick="scanFacebookGroups()" style="align-self:flex-start;padding:12px 20px">🔍 Scan Groups</button>
+        </div>
+        <div class="error-banner" id="fbError"></div>
+        <div id="fbResults"><div class="empty-state"><span class="empty-icon">👥</span><p>Paste group URLs above and click Scan Groups.</p></div></div>
       </div>
 
-      <div class="error-banner" id="fbError"></div>
-      <div id="fbResults">
-        <div class="empty-state">
-          <span class="empty-icon">👥</span>
-          <p>Add your Facebook token in Settings, paste group URLs above, then click Scan Groups.</p>
+      <!-- ── FB PAGES panel ── -->
+      <div class="platform-panel" id="panel-fbpage">
+        <div class="fb-info-box">
+          <h3>📘 Facebook Pages — scan any public page for interested commenters</h3>
+          <ol>
+            <li>Uses the same Facebook token from Settings — no extra setup needed</li>
+            <li>Works on <strong>any public Facebook page</strong> — competitor pages, niche pages, community pages</li>
+            <li>Finds people commenting "I'm interested", "how much?", "I need this" on page posts</li>
+          </ol>
+        </div>
+        <div class="fb-input-row">
+          <textarea id="fbpage-urls" placeholder="https://www.facebook.com/YourNichePage&#10;https://www.facebook.com/CompetitorPage&#10;(one page URL per line)"></textarea>
+          <button class="btn-primary" id="fbPageScanBtn" onclick="scanFacebookPages()" style="align-self:flex-start;padding:12px 20px">🔍 Scan Pages</button>
+        </div>
+        <div class="error-banner" id="fbPageError"></div>
+        <div id="fbPageResults"><div class="empty-state"><span class="empty-icon">📘</span><p>Paste Facebook Page URLs above and click Scan Pages.</p></div></div>
+      </div>
+
+      <!-- ── INSTAGRAM panel ── -->
+      <div class="platform-panel" id="panel-instagram">
+        <div class="fb-info-box">
+          <h3>📸 Instagram — scan comments on your own posts for interested people</h3>
+          <ol>
+            <li>Uses your Facebook token — but your Instagram account must be a <strong>Business or Creator account</strong></li>
+            <li>Link your Instagram to your Facebook Page: Facebook Page → Settings → Instagram</li>
+            <li>Finds commenters saying "interested", "how much?", "I need this" on your posts</li>
+            <li>Each lead shows the person's <strong>@username</strong> and a direct link to their Instagram profile</li>
+          </ol>
+        </div>
+        <div style="margin-bottom:20px">
+          <button class="btn-primary" id="igScanBtn" onclick="scanInstagram()">📸 Scan My Instagram</button>
+          <span style="font-size:0.78rem;color:var(--muted);margin-left:12px">Automatically finds all Instagram accounts linked to your token</span>
+        </div>
+        <div class="error-banner" id="igError"></div>
+        <div id="igResults"><div class="empty-state"><span class="empty-icon">📸</span><p>Click Scan My Instagram to find interested commenters on your posts.</p></div></div>
+      </div>
+
+      <!-- ── LINKEDIN panel ── -->
+      <div class="platform-panel" id="panel-linkedin">
+        <div class="li-info-box">
+          <strong>💼 LinkedIn Paste &amp; Score</strong> — LinkedIn blocks all automated scraping, so this works differently.
+          You copy text from LinkedIn (a post, a comment, someone's About section, or their headline) and paste it here.
+          The AI scores it for buyer intent and shows it as a lead with the profile link you provide.
+          <br><br>
+          <strong>Best sources to paste from:</strong> LinkedIn posts asking for recommendations · Comments saying "interested" on relevant posts · Profile About sections mentioning problems you solve · Headlines like "Looking for SEO agency"
+        </div>
+
+        <div class="li-form">
+          <div class="li-form-title">Paste LinkedIn Content</div>
+          <div class="li-row single">
+            <textarea class="li-input li-textarea" id="li-text" placeholder="Paste the LinkedIn post, comment, or profile text here…"></textarea>
+          </div>
+          <div class="li-row">
+            <input class="li-input" type="text" id="li-name" placeholder="Person's name (optional)" />
+            <select class="li-input li-select" id="li-type">
+              <option value="post">LinkedIn Post</option>
+              <option value="comment">Comment on a post</option>
+              <option value="profile_bio">Profile headline / bio</option>
+              <option value="profile_about">Profile About section</option>
+            </select>
+          </div>
+          <div class="li-row">
+            <input class="li-input" type="url" id="li-url" placeholder="LinkedIn profile or post URL (optional)" />
+            <div style="display:flex;align-items:center">
+              <button class="li-add-btn" onclick="addLinkedinItem()">+ Add to Queue</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="li-queue">
+          <div class="li-queue-label">QUEUE</div>
+          <div id="liQueue"></div>
+        </div>
+
+        <div class="li-score-row">
+          <button class="btn-primary" id="liScoreBtn" onclick="scoreLinkedinItems()" disabled>🧠 Score with AI</button>
+          <span style="font-size:0.78rem;color:var(--muted)">Add items to the queue first, then score them all at once</span>
+        </div>
+
+        <div class="error-banner" id="liError"></div>
+        <div id="liResults" style="margin-top:24px">
+          <div class="empty-state"><span class="empty-icon">💼</span><p>Paste LinkedIn content above, add it to the queue, then click Score with AI.</p></div>
         </div>
       </div>
+
     </div>
 
     <!-- ══ PAGE: DAILY LEADS ══ -->
@@ -459,5 +582,6 @@
   </main>
 </div>
 <script src="app.js"></script>
+<script src="platforms.js"></script>
 </body>
 </html>
