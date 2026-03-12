@@ -3,5 +3,3 @@ uvicorn[standard]
 requests
 openai
 python-dotenv
-google-generativeai
-anthropic
