@@ -72,19 +72,28 @@ def _parse_score(raw: str) -> float:
 
 
 def _score_openai(prompt: str, key_override: str) -> float:
-    from openai import OpenAI
+    import requests as req
     key = key_override.strip() or os.getenv("OPENAI_API_KEY", "")
     if not key:
         raise ValueError("No OpenAI API key available")
 
-    client = OpenAI(api_key=key)
-    r = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=5,
-        temperature=0,
+    # Use requests directly to avoid OpenAI SDK encoding issues
+    r = req.post(
+        "https://api.openai.com/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json; charset=utf-8",
+        },
+        json={
+            "model": "gpt-4o-mini",
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": 5,
+            "temperature": 0,
+        },
+        timeout=15,
     )
-    return _parse_score(r.choices[0].message.content)
+    r.raise_for_status()
+    return _parse_score(r.json()["choices"][0]["message"]["content"])
 
 
 def _score_gemini(prompt: str, key_override: str) -> float:
