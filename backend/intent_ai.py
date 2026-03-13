@@ -33,15 +33,18 @@ Return ONLY a single number 1-10. Nothing else."""
 
 def _clean(text: str) -> str:
     """Remove ALL non-ASCII characters to prevent any encoding issues."""
-    # Replace common unicode punctuation with ASCII equivalents
     text = text.replace('\u2013', '-').replace('\u2014', '-')
     text = text.replace('\u2018', "'").replace('\u2019', "'")
     text = text.replace('\u201c', '"').replace('\u201d', '"')
     text = text.replace('\u2026', '...')
-    # Strip everything else non-ASCII
     text = re.sub(r'[^\x00-\x7F]+', ' ', text)
     text = re.sub(r'\s+', ' ', text).strip()
     return text[:1500]
+
+
+def _clean_key(key: str) -> str:
+    """Strip any invisible or non-ASCII characters from API keys (copy-paste artifacts)."""
+    return key.encode('ascii', errors='ignore').decode('ascii').strip()
 
 
 def score_intent(post: str, provider: str = "openai", api_key_override: str = "") -> float:
@@ -79,11 +82,10 @@ def _parse_score(raw: str) -> float:
 def _score_openai(prompt: str, key_override: str) -> float:
     import urllib.request
     import json
-    key = key_override.strip() or os.getenv("OPENAI_API_KEY", "")
+    key = _clean_key(key_override) or _clean_key(os.getenv("OPENAI_API_KEY", ""))
     if not key:
         raise ValueError("No OpenAI API key available")
 
-    # Use urllib (stdlib only) to avoid any requests library encoding issues
     payload = json.dumps({
         "model": "gpt-4o-mini",
         "messages": [{"role": "user", "content": prompt}],
@@ -107,7 +109,7 @@ def _score_openai(prompt: str, key_override: str) -> float:
 
 def _score_gemini(prompt: str, key_override: str) -> float:
     import requests
-    key = key_override.strip() or os.getenv("GEMINI_API_KEY", "")
+    key = _clean_key(key_override) or _clean_key(os.getenv("GEMINI_API_KEY", ""))
     if not key:
         raise ValueError("No Gemini API key available")
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={key}"
@@ -123,7 +125,7 @@ def _score_gemini(prompt: str, key_override: str) -> float:
 
 def _score_claude(prompt: str, key_override: str) -> float:
     import requests
-    key = key_override.strip() or os.getenv("CLAUDE_API_KEY", "")
+    key = _clean_key(key_override) or _clean_key(os.getenv("CLAUDE_API_KEY", ""))
     if not key:
         raise ValueError("No Claude API key available")
     r = requests.post(
