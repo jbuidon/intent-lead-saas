@@ -78,18 +78,21 @@ def _score_openai(prompt: str, key_override: str) -> float:
         raise ValueError("No OpenAI API key available")
 
     # Use requests directly to avoid OpenAI SDK encoding issues
+    import json as _json
+    body = _json.dumps({
+        "model": "gpt-4o-mini",
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 5,
+        "temperature": 0,
+    }, ensure_ascii=True).encode("utf-8")
+
     r = req.post(
         "https://api.openai.com/v1/chat/completions",
         headers={
             "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json; charset=utf-8",
+            "Content-Type": "application/json",
         },
-        json={
-            "model": "gpt-4o-mini",
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 5,
-            "temperature": 0,
-        },
+        data=body,
         timeout=15,
     )
     r.raise_for_status()
