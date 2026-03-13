@@ -42,7 +42,11 @@ def score_intent(post: str, provider: str = "openai", api_key_override: str = ""
     if not post or not post.strip():
         return 0.0
 
-    prompt = PROMPT_TEMPLATE.format(post=post[:1500])
+    # Strip non-ASCII characters (emojis, unicode) that crash some API clients
+    clean_post = post[:1500].encode('ascii', errors='ignore').decode('ascii').strip()
+    if not clean_post:
+        return 0.0
+    prompt = PROMPT_TEMPLATE.format(post=clean_post)
 
     try:
         if provider == "openai":
