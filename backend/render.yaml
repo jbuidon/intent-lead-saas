@@ -6,8 +6,8 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
-      # All keys are OPTIONAL if users provide them via frontend Settings.
-      # Set these if you want the background scanner to work server-side.
+      - key: PYTHON_VERSION
+        value: "3.11.9"
       - key: OPENAI_API_KEY
         sync: false
       - key: GEMINI_API_KEY
