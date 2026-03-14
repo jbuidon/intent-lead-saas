@@ -61,11 +61,15 @@ def search_reddit(keyword: str, limit: int = 25) -> list[dict]:
             sub   = p.get("subreddit", "reddit")
 
             if text and len(text.strip()) > 20:
+                import datetime
+                created_utc = p.get("created_utc")
+                post_date = datetime.datetime.utcfromtimestamp(created_utc).isoformat() + "Z" if created_utc else ""
                 results.append({
                     "snippet":     (text[:500] if len(text) > 500 else text),
                     "title":       title,
                     "link":        link,
                     "source_name": f"reddit/r/{sub}",
+                    "post_date":   post_date,
                 })
 
     except Exception as e:
@@ -89,11 +93,15 @@ def search_reddit(keyword: str, limit: int = 25) -> list[dict]:
                 link  = f"https://reddit.com{p.get('permalink', '')}"
 
                 if text and len(text.strip()) > 20:
+                    import datetime
+                    created_utc = p.get("created_utc")
+                    post_date = datetime.datetime.utcfromtimestamp(created_utc).isoformat() + "Z" if created_utc else ""
                     results.append({
                         "snippet":     text[:500],
                         "title":       title,
                         "link":        link,
                         "source_name": f"reddit/r/{subreddit}",
+                        "post_date":   post_date,
                     })
 
             time.sleep(0.5)
@@ -143,12 +151,14 @@ def search_rss(keyword: str) -> list[dict]:
                     text  = hit.get("story_text") or hit.get("title") or ""
                     title = hit.get("title", "")
                     link  = hit.get("url") or f"https://news.ycombinator.com/item?id={hit.get('objectID','')}"
+                    post_date = hit.get("created_at", "")
                     if text:
                         results.append({
                             "snippet":     text[:500],
                             "title":       title,
                             "link":        link,
                             "source_name": "hackernews",
+                            "post_date":   post_date,
                         })
                 continue
 
@@ -178,6 +188,7 @@ def search_rss(keyword: str) -> list[dict]:
                 desc = re.sub(r"\s+", " ", desc)
 
                 source = "quora" if "quora" in url else "reddit-rss"
+                pub_date = txt("pubDate") or txt("updated") or txt("published") or ""
 
                 if (title or desc) and link:
                     results.append({
@@ -185,6 +196,7 @@ def search_rss(keyword: str) -> list[dict]:
                         "title":       title,
                         "link":        link,
                         "source_name": source,
+                        "post_date":   pub_date,
                     })
 
             time.sleep(0.3)
