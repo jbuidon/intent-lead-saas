@@ -235,6 +235,8 @@ async function doSearch() {
   setSearchUI('searching');
 
   const minScore = parseFloat(document.getElementById('minScoreVal')?.textContent || '6');
+
+  // ── Build params — include FB groups if token + groups are configured ──
   const params = new URLSearchParams({
     keyword,
     provider:     currentProvider,
@@ -243,8 +245,26 @@ async function doSearch() {
     min_score:    minScore,
   });
 
+  // Pass FB token and group URLs if available — backend will scan them too
+  if (s.fbtoken && s.fbgroups) {
+    params.set('fb_token',   s.fbtoken);
+    // fbgroups is stored as newline-separated, backend expects comma-separated
+    const groupUrls = s.fbgroups.split('\n').map(u => u.trim()).filter(Boolean).join(',');
+    if (groupUrls) params.set('group_urls', groupUrls);
+  }
+
   // Close any existing stream
   if (activeEventSource) { activeEventSource.close(); activeEventSource = null; }
+
+  // Show FB groups notice if they're included
+  if (s.fbtoken && s.fbgroups) {
+    const groupCount = s.fbgroups.split('\n').filter(u => u.trim()).length;
+    const note = document.getElementById('stopNote');
+    if (note) {
+      note.textContent = `🔍 Searching web + ${groupCount} Facebook group${groupCount !== 1 ? 's' : ''} for "${keyword}"`;
+      note.style.display = 'block';
+    }
+  }
 
   // Open SSE stream
   activeEventSource = new EventSource(`${s.backend}/search?${params}`);
@@ -446,7 +466,12 @@ function appendLead(lead, containerId, providerLabel) {
     container.innerHTML = `<div class="leads-header"><div class="leads-title" id="leadsCount">0 Leads</div></div><div id="leadsList"></div>`;
   }
   const list = document.getElementById('leadsList') || container;
-  const card = buildLeadCard(lead, providerLabel);
+
+  // Use richer Facebook card for FB group leads
+  const card = (lead.source_name === 'facebook_group')
+    ? buildFacebookLeadCard(lead)
+    : buildLeadCard(lead, providerLabel);
+
   list.insertAdjacentHTML('afterbegin', card); // newest at top
   // Update count to reflect ALL leads (old + new)
   const countEl = document.getElementById('leadsCount');
@@ -680,7 +705,7 @@ function buildFacebookLeadCard(lead) {
     <div class="lead-top">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span class="fb-type-badge ${typeCls}">${typeLabel}</span>
-        <span class="lead-source">${escHtml(lead.source || 'facebook')}</span>
+        <span class="lead-source">${escHtml(lead.source_name || lead.source || 'facebook')}</span>
       </div>
       <div class="score-group">
         <div class="score-bar"><div class="score-fill ${tier}" style="width:${pct}%"></div></div>
@@ -700,12 +725,8 @@ function buildFacebookLeadCard(lead) {
         </div>
       </div>
       <div style="display:flex;gap:8px">
-        <a class="fb-profile-btn" href="${escHtml(lead.profile_url || '#')}" target="_blank" rel="noopener">
-          View Profile →
-        </a>
-        <a class="lead-link" href="${escHtml(lead.post_url || '#')}" target="_blank" rel="noopener">
-          View Post
-        </a>
+        ${lead.profile_url ? `<a class="fb-profile-btn" href="${escHtml(lead.profile_url)}" target="_blank" rel="noopener">View Profile →</a>` : ''}
+        <a class="lead-link" href="${escHtml(lead.post_url || '#')}" target="_blank" rel="noopener">View Post</a>
       </div>
     </div>
   </div>`;
@@ -741,7 +762,6 @@ function renderFacebookResults(results) {
     if (leads.length === 0 && !group.error) {
       html += `<div class="empty-state" style="padding:24px"><p>No buyer-intent posts or interested commenters found in this group.</p></div>`;
     } else {
-      // Sort: commenters first (they already raised their hand), then post authors
       const sorted = [
         ...commenters.sort((a, b) => b.intent_score - a.intent_score),
         ...postAuthors.sort((a, b) => b.intent_score - a.intent_score),
