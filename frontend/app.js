@@ -400,6 +400,7 @@ function showClearBtn(show) {
   let btn = document.getElementById('clearResultsBtn');
   if (!btn) return;
   btn.style.display = show ? 'inline-flex' : 'none';
+  showResultsToolbar(show);
 }
 
 function restoreLeadsOnLoad() {
@@ -782,6 +783,66 @@ function renderFacebookResults(results) {
     <div class="leads-header">
       <div class="leads-title">${totalLeads} Lead${totalLeads !== 1 ? 's' : ''} across ${results.length} Group${results.length !== 1 ? 's' : ''}</div>
     </div>` + html;
+}
+
+// ─── SCORE FILTER + SORT ─────────────────────────────────────────────────────
+
+let activeFilter = 'all';   // 'all' | number (min score)
+let activeSort   = 'newest'; // 'newest' | 'score'
+
+function filterLeads(threshold, btn) {
+  activeFilter = threshold;
+  // Update chip active states
+  document.querySelectorAll('.score-chip').forEach(c => c.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderFilteredLeads();
+}
+
+function sortLeads(mode, btn) {
+  activeSort = mode;
+  document.querySelectorAll('.sort-chip').forEach(c => c.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderFilteredLeads();
+}
+
+function renderFilteredLeads() {
+  if (!searchLeads.length) return;
+
+  // 1. Filter
+  let filtered = activeFilter === 'all'
+    ? [...searchLeads]
+    : searchLeads.filter(l => l.intent_score >= activeFilter);
+
+  // 2. Sort
+  if (activeSort === 'score') {
+    filtered.sort((a, b) => b.intent_score - a.intent_score);
+  }
+  // 'newest' = keep insertion order (already newest-first from appendLead)
+
+  // 3. Re-render list
+  const container = document.getElementById('searchResults');
+  if (!filtered.length) {
+    container.innerHTML = `<div class="empty-state"><span class="empty-icon">🔍</span>
+      <p>No leads with score ≥${activeFilter}. Lower the filter threshold to see more.</p></div>`;
+    return;
+  }
+
+  container.innerHTML = `<div class="leads-header">
+    <div class="leads-title" id="leadsCount">${filtered.length} Lead${filtered.length !== 1 ? 's' : ''}${activeFilter !== 'all' ? ` (score ≥${activeFilter})` : ''}</div>
+  </div><div id="leadsList"></div>`;
+
+  const list = document.getElementById('leadsList');
+  filtered.forEach(lead => {
+    const card = lead.source_name === 'facebook_group'
+      ? buildFacebookLeadCard(lead)
+      : buildLeadCard(lead, lead.source_name || 'web');
+    list.insertAdjacentHTML('beforeend', card);
+  });
+}
+
+function showResultsToolbar(show) {
+  const toolbar = document.getElementById('resultsToolbar');
+  if (toolbar) toolbar.classList.toggle('visible', show);
 }
 
 // ─── PLATFORM TAB SWITCHER ────────────────────────────────────────────────────
