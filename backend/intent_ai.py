@@ -43,8 +43,27 @@ def _clean(text: str) -> str:
 
 
 def _clean_key(key: str) -> str:
-    """Strip any invisible or non-ASCII characters from API keys (copy-paste artifacts)."""
+    """Strip any invisible or non-ASCII characters from API keys."""
     return key.encode('ascii', errors='ignore').decode('ascii').strip()
+
+
+def _get_fallback_order(preferred: str) -> list[tuple[str, str]]:
+    """
+    Build a list of (provider, key) pairs to try in order.
+    Starts with the preferred provider, then falls back to others
+    that have keys available — either passed in or from environment.
+    """
+    env_keys = {
+        "openai": _clean_key(os.getenv("OPENAI_API_KEY", "")),
+        "gemini": _clean_key(os.getenv("GEMINI_API_KEY", "")),
+        "claude": _clean_key(os.getenv("CLAUDE_API_KEY", "")),
+    }
+
+    # All three providers in preferred-first order
+    order = [preferred] + [p for p in ["openai", "gemini", "claude"] if p != preferred]
+
+    # Only include providers that actually have a key
+    return [(p, env_keys[p]) for p in order if env_keys[p]]
 
 
 def score_intent(post: str, provider: str = "openai", api_key_override: str = "") -> float:
@@ -57,18 +76,47 @@ def score_intent(post: str, provider: str = "openai", api_key_override: str = ""
 
     prompt = PROMPT_TEMPLATE.format(post=clean_post)
 
-    try:
-        if provider == "openai":
-            return _score_openai(prompt, api_key_override)
-        elif provider == "gemini":
-            return _score_gemini(prompt, api_key_override)
-        elif provider == "claude":
-            return _score_claude(prompt, api_key_override)
-        else:
-            return _score_openai(prompt, api_key_override)
-    except Exception as e:
-        print(f"Intent scoring error ({provider}): {e}")
+    # If a specific key is passed (from frontend UI), use it directly for that provider
+    if api_key_override and _clean_key(api_key_override):
+        try:
+            return _call_provider(provider, prompt, api_key_override)
+        except Exception as e:
+            print(f"Intent scoring error ({provider}): {e}")
+            # Even with override, fall through to env-key fallback below
+
+    # Auto-fallback using environment keys: try preferred first, then others
+    fallback_chain = _get_fallback_order(provider)
+
+    if not fallback_chain:
+        print("Intent scoring: no API keys available in environment (OPENAI_API_KEY / GEMINI_API_KEY / CLAUDE_API_KEY)")
         return 0.0
+
+    last_error = None
+    for p, key in fallback_chain:
+        try:
+            score = _call_provider(p, prompt, key)
+            if p != provider:
+                print(f"Intent scoring: fell back to {p} (preferred {provider} unavailable)")
+            return score
+        except Exception as e:
+            print(f"Intent scoring error ({p}): {e}")
+            last_error = e
+            continue
+
+    print(f"Intent scoring: all providers failed. Last error: {last_error}")
+    return 0.0
+
+
+def _call_provider(provider: str, prompt: str, key: str) -> float:
+    """Call a specific provider with a specific key."""
+    if provider == "openai":
+        return _score_openai(prompt, key)
+    elif provider == "gemini":
+        return _score_gemini(prompt, key)
+    elif provider == "claude":
+        return _score_claude(prompt, key)
+    else:
+        return _score_openai(prompt, key)
 
 
 def _parse_score(raw: str) -> float:
