@@ -135,7 +135,8 @@ def search_stream(
                         )
                     ]
 
-                    yield f"data: {json.dumps({'type': 'progress', 'current': gi, 'total': len(parsed_group_urls), 'message': f'Found {len(matching_posts)} posts mentioning \"{keyword}\" in group {gi+1}…'})}\n\n"
+                    _msg = f'Found {len(matching_posts)} posts mentioning "{keyword}" in group {gi+1}...'
+                    yield f"data: {json.dumps({'type': 'progress', 'current': gi, 'total': len(parsed_group_urls), 'message': _msg})}\n\n"
 
                     for post in matching_posts:
                         post_text = post.get("message") or post.get("story") or ""
