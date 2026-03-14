@@ -102,6 +102,7 @@ def search_stream(
                             if score >= min_score:
                                 e["intent_score"]  = score
                                 e["source_name"]   = result.get("source_name", "web")
+                                e["created_at"]    = result.get("post_date", "")
                                 save_lead(e["post_text"], e["post_url"], score)
                                 yield f"data: {json.dumps({'type': 'lead', 'data': e})}\n\n"
 
