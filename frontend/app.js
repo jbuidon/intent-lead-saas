@@ -661,7 +661,8 @@ function buildLeadCard(lead, providerLabel) {
   const tier   = score >= 8 ? 'h' : score >= 6 ? 'm' : 'l';
   const pct    = Math.round((score / 10) * 100);
   const source = lead.source_name || lead.source || extractDomain(url);
-  const dateStr = lead.created_at ? formatDate(lead.created_at) : formatDate(new Date().toISOString());
+  const dateStr = formatDate(lead.created_at || lead.post_date || '');
+  const dateTag = dateStr ? `<span class="provider-tag" style="color:var(--muted)">${dateStr}</span>` : '';
   const keyword = lead.keyword ? `<span class="provider-tag" style="color:var(--accent2)">${escHtml(lead.keyword)}</span>` : '';
 
   return `<div class="lead-card ${score >= 8 ? 'high' : ''}">
@@ -678,7 +679,7 @@ function buildLeadCard(lead, providerLabel) {
       <div style="display:flex;gap:6px;align-items:center">
         ${keyword}
         <span class="provider-tag">${escHtml(providerLabel || 'ai')}</span>
-        <span class="provider-tag" style="color:var(--muted)">${dateStr}</span>
+        ${dateTag}
       </div>
     </div>
   </div>`;
@@ -698,8 +699,10 @@ function renderLeads(leads, containerId, providerLabel) {
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function formatDate(isoStr) {
+  if (!isoStr) return '';
   try {
-    const d = new Date(isoStr);
+    const d = new Date(isoStr); // handles ISO, RFC2822 (RSS pubDate), and HN format
+    if (isNaN(d.getTime())) return '';
     const now = new Date();
     const diffMs = now - d;
     const diffMins = Math.floor(diffMs / 60000);
@@ -709,7 +712,8 @@ function formatDate(isoStr) {
     if (diffMins < 60)  return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7)   return `${diffDays}d ago`;
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (diffDays < 365) return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   } catch { return ''; }
 }
 
