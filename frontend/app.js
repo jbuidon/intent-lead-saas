@@ -148,6 +148,18 @@ function saveSettings() {
   const toast = document.getElementById('saveToast');
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 2500);
+
+  // Sync keywords to backend so scanner picks them up
+  const backendUrl = localStorage.getItem(KEYS.backend) || '';
+  const keywordsRaw = document.getElementById('set-keywords').value.trim();
+  if (backendUrl && keywordsRaw) {
+    const keywords = keywordsRaw.split('\n').map(k => k.trim()).filter(Boolean);
+    fetch(`${backendUrl}/keywords`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keywords }),
+    }).catch(() => {}); // silent — non-critical
+  }
 }
 
 function clearAllKeys() {
@@ -274,6 +286,7 @@ async function doSearch() {
       const msg = JSON.parse(event.data);
 
       if (msg.type === 'lead') {
+        msg.data.created_at = msg.data.created_at || new Date().toISOString();
         searchLeads.push(msg.data);
         appendLead(msg.data, 'searchResults', currentProvider);
         updateSearchStats();
@@ -600,7 +613,12 @@ async function loadDailyLeads() {
     if (!res.ok) throw new Error(`Server error ${res.status}`);
     const data = await res.json();
     allDailyLeads = data.map(r => ({
-      post_text: r.post, post_url: r.url, intent_score: r.intent, name: 'Stored Lead',
+      post_text:    r.post,
+      post_url:     r.url,
+      intent_score: r.intent,
+      created_at:   r.created_at,
+      keyword:      r.keyword || '',
+      name: 'Stored Lead',
     }));
     document.getElementById('dailyBadge').textContent = allDailyLeads.length;
     renderDailyTab();
@@ -642,7 +660,9 @@ function buildLeadCard(lead, providerLabel) {
   const score  = parseFloat(lead.intent_score) || 0;
   const tier   = score >= 8 ? 'h' : score >= 6 ? 'm' : 'l';
   const pct    = Math.round((score / 10) * 100);
-  const source = lead.source || extractDomain(url);
+  const source = lead.source_name || lead.source || extractDomain(url);
+  const dateStr = lead.created_at ? formatDate(lead.created_at) : formatDate(new Date().toISOString());
+  const keyword = lead.keyword ? `<span class="provider-tag" style="color:var(--accent2)">${escHtml(lead.keyword)}</span>` : '';
 
   return `<div class="lead-card ${score >= 8 ? 'high' : ''}">
     <div class="lead-top">
@@ -655,7 +675,11 @@ function buildLeadCard(lead, providerLabel) {
     <p class="lead-text">${escHtml(text)}</p>
     <div class="lead-footer">
       <a class="lead-link" href="${escHtml(url)}" target="_blank" rel="noopener">View post →</a>
-      <span class="provider-tag">${escHtml(providerLabel || 'ai')}</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        ${keyword}
+        <span class="provider-tag">${escHtml(providerLabel || 'ai')}</span>
+        <span class="provider-tag" style="color:var(--muted)">${dateStr}</span>
+      </div>
     </div>
   </div>`;
 }
@@ -673,6 +697,22 @@ function renderLeads(leads, containerId, providerLabel) {
 }
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
+function formatDate(isoStr) {
+  try {
+    const d = new Date(isoStr);
+    const now = new Date();
+    const diffMs = now - d;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    if (diffMins < 1)   return 'just now';
+    if (diffMins < 60)  return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7)   return `${diffDays}d ago`;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch { return ''; }
+}
+
 function showError(id, msg) {
   const el = document.getElementById(id);
   if (!el) return;
