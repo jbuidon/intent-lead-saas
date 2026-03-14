@@ -5,7 +5,8 @@ Priority order (free first, SerpAPI last):
   1. Reddit API        — official, free, no key needed, best quality
   2. RSS feeds         — Reddit + Quora + forums, completely free
   3. DuckDuckGo HTML   — free scrape, no API key needed
-  4. SerpAPI           — paid fallback, only used if above return nothing
+  4. Facebook Groups   — targeted site:facebook.com/groups queries via DDG
+  5. SerpAPI           — paid fallback, only used if above return nothing
 
 Each source returns a standard list of dicts:
   { snippet, link, title, source_name }
@@ -26,7 +27,6 @@ HEADERS = {
 # 1. REDDIT API  (completely free, official JSON API, no key needed)
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Subreddits most likely to have buyer-intent posts
 BUYER_SUBREDDITS = [
     "entrepreneur", "smallbusiness", "startups", "business",
     "marketing", "digital_marketing", "SEO", "PPC", "webdev",
@@ -38,13 +38,8 @@ BUYER_SUBREDDITS = [
 ]
 
 def search_reddit(keyword: str, limit: int = 25) -> list[dict]:
-    """
-    Search Reddit using the official free JSON API.
-    No API key required. Searches posts + comments.
-    """
     results = []
 
-    # Search across all of Reddit
     try:
         url = f"https://www.reddit.com/search.json"
         params = {
@@ -76,8 +71,7 @@ def search_reddit(keyword: str, limit: int = 25) -> list[dict]:
     except Exception as e:
         print(f"Reddit search error: {e}")
 
-    # Also search top buyer subreddits directly
-    for subreddit in BUYER_SUBREDDITS[:8]:  # limit to 8 to avoid rate limits
+    for subreddit in BUYER_SUBREDDITS[:8]:
         try:
             url = f"https://www.reddit.com/r/{subreddit}/search.json"
             params = {"q": keyword, "restrict_sr": "1", "sort": "new", "limit": 10, "t": "month"}
@@ -102,13 +96,12 @@ def search_reddit(keyword: str, limit: int = 25) -> list[dict]:
                         "source_name": f"reddit/r/{subreddit}",
                     })
 
-            time.sleep(0.5)  # Be polite to Reddit's API
+            time.sleep(0.5)
 
         except Exception as e:
             print(f"Reddit r/{subreddit} error: {e}")
             continue
 
-    # Deduplicate by link
     seen = set()
     unique = []
     for r in results:
@@ -120,28 +113,21 @@ def search_reddit(keyword: str, limit: int = 25) -> list[dict]:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 2. RSS FEEDS  (Reddit, Quora, various forums — completely free)
+# 2. RSS FEEDS
 # ══════════════════════════════════════════════════════════════════════════════
 
 RSS_FEEDS = [
-    # Reddit RSS for buyer-intent subreddits
     "https://www.reddit.com/r/entrepreneur/search.rss?q={kw}&sort=new&restrict_sr=1",
     "https://www.reddit.com/r/smallbusiness/search.rss?q={kw}&sort=new&restrict_sr=1",
     "https://www.reddit.com/r/forhire/search.rss?q={kw}&sort=new&restrict_sr=1",
     "https://www.reddit.com/r/hiring/search.rss?q={kw}&sort=new&restrict_sr=1",
     "https://www.reddit.com/r/SEO/search.rss?q={kw}&sort=new&restrict_sr=1",
     "https://www.reddit.com/r/digital_marketing/search.rss?q={kw}&sort=new&restrict_sr=1",
-    # Quora RSS (search results)
     "https://www.quora.com/search?q={kw}&type=question&format=rss",
-    # Hacker News (good for tech/startup leads)
     "https://hn.algolia.com/api/v1/search_by_date?query={kw}&tags=ask_hn&hitsPerPage=10",
 ]
 
 def search_rss(keyword: str) -> list[dict]:
-    """
-    Pull from RSS feeds — Reddit, Quora, Hacker News.
-    Completely free, no rate limits worth worrying about.
-    """
     results = []
     kw_encoded = quote_plus(keyword)
 
@@ -149,7 +135,6 @@ def search_rss(keyword: str) -> list[dict]:
         url = feed_template.replace("{kw}", kw_encoded)
 
         try:
-            # Hacker News uses JSON API, not RSS
             if "hn.algolia.com" in url:
                 r = requests.get(url, headers=HEADERS, timeout=8)
                 r.raise_for_status()
@@ -167,18 +152,14 @@ def search_rss(keyword: str) -> list[dict]:
                         })
                 continue
 
-            # Standard RSS/Atom parsing
             r = requests.get(url, headers=HEADERS, timeout=8)
             r.raise_for_status()
 
-            # Parse XML
             root = ElementTree.fromstring(r.content)
             ns   = {"atom": "http://www.w3.org/2005/Atom"}
 
-            # Try RSS format first
             items = root.findall(".//item")
             if not items:
-                # Try Atom format
                 items = root.findall(".//atom:entry", ns) or root.findall(".//entry")
 
             for item in items[:10]:
@@ -193,7 +174,6 @@ def search_rss(keyword: str) -> list[dict]:
                     link = link_el.get("href") or link_el.text or ""
                 desc    = txt("description") or txt("summary") or txt("content")
 
-                # Strip HTML tags from description
                 desc = re.sub(r"<[^>]+>", " ", desc).strip()
                 desc = re.sub(r"\s+", " ", desc)
 
@@ -213,7 +193,6 @@ def search_rss(keyword: str) -> list[dict]:
             print(f"RSS feed error ({url[:50]}): {e}")
             continue
 
-    # Deduplicate
     seen = set()
     unique = []
     for r in results:
@@ -225,7 +204,7 @@ def search_rss(keyword: str) -> list[dict]:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 3. DUCKDUCKGO HTML SCRAPE  (free, no key needed)
+# 3. DUCKDUCKGO HTML SCRAPE
 # ══════════════════════════════════════════════════════════════════════════════
 
 DDG_HEADERS = {
@@ -236,7 +215,6 @@ DDG_HEADERS = {
 }
 
 def _parse_ddg_html(html: str, source_label: str) -> list[dict]:
-    """Shared DDG HTML parser — extracts results from DuckDuckGo lite HTML."""
     from urllib.parse import unquote
     results = []
 
@@ -263,7 +241,6 @@ def _parse_ddg_html(html: str, source_label: str) -> list[dict]:
 
 
 def _ddg_post(query: str) -> str:
-    """Make a single DuckDuckGo lite POST request, return raw HTML."""
     r = requests.post(
         "https://html.duckduckgo.com/html/",
         data={"q": query, "b": "", "kl": "us-en"},
@@ -275,9 +252,6 @@ def _ddg_post(query: str) -> str:
 
 
 def search_duckduckgo(query: str) -> list[dict]:
-    """
-    Scrape DuckDuckGo for general web results — free, no API key required.
-    """
     try:
         return _parse_ddg_html(_ddg_post(query), "duckduckgo")
     except Exception as e:
@@ -286,40 +260,63 @@ def search_duckduckgo(query: str) -> list[dict]:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 3b. FACEBOOK via DuckDuckGo  (free — searches public Facebook posts via DDG)
+# 4. FACEBOOK GROUPS via DuckDuckGo  (free — no token needed)
+#    Searches public Facebook group posts using targeted buyer-intent queries
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Buyer-intent phrase templates specifically for Facebook public posts
-FB_BUYER_PHRASES = [
-    'site:facebook.com "looking for {kw}"',
-    'site:facebook.com "need {kw}"',
-    'site:facebook.com "anyone recommend" "{kw}"',
-    'site:facebook.com "recommend a {kw}"',
-    'site:facebook.com "struggling with {kw}"',
-    'site:facebook.com/groups "looking for {kw}"',
-    'site:facebook.com/groups "need {kw}"',
-    'site:facebook.com/groups "recommend" "{kw}"',
+# These queries specifically target public Facebook group posts
+# where real people are asking for help, recommendations, or showing buying intent
+FB_GROUP_QUERIES = [
+    # Direct asks in groups
+    'site:facebook.com/groups "{kw}" "looking for"',
+    'site:facebook.com/groups "{kw}" "anyone recommend"',
+    'site:facebook.com/groups "{kw}" "can anyone"',
+    'site:facebook.com/groups "{kw}" "need help"',
+    'site:facebook.com/groups "{kw}" "how much"',
+    'site:facebook.com/groups "{kw}" "where can i"',
+    'site:facebook.com/groups "{kw}" "struggling"',
+    'site:facebook.com/groups "{kw}" "frustrated"',
+    # Public Facebook posts (not just groups)
+    'site:facebook.com "{kw}" "looking for" "recommend"',
+    'site:facebook.com "{kw}" "need a" "help"',
 ]
 
-def search_facebook_ddg(keyword: str) -> list[dict]:
+def search_facebook_groups_ddg(keyword: str) -> list[dict]:
     """
-    Search public Facebook posts and groups via DuckDuckGo site: operator.
-    Completely free — no API key, no token required.
-    Finds public posts where people are asking for recommendations or help.
+    Search public Facebook group posts via DuckDuckGo site: operator.
+    No API key or Facebook token needed.
+    Finds public posts where people ask for recommendations or show buying intent.
     """
     results = []
 
-    for template in FB_BUYER_PHRASES:
+    for template in FB_GROUP_QUERIES:
         query = template.replace("{kw}", keyword)
         try:
             html = _ddg_post(query)
-            hits = _parse_ddg_html(html, "facebook/ddg")
+            hits = _parse_ddg_html(html, "facebook_group")
             # Only keep results that actually link to facebook.com
             fb_hits = [h for h in hits if "facebook.com" in h.get("link", "")]
             results.extend(fb_hits)
-            time.sleep(0.6)  # Be polite to DDG
+            time.sleep(0.8)  # Be polite to DDG — slightly longer delay for group queries
         except Exception as e:
-            print(f"Facebook DDG error ('{query[:40]}'): {e}")
+            print(f"Facebook Groups DDG error ('{query[:50]}'): {e}")
+            continue
+
+    # Also run a few general Facebook searches (not just groups)
+    general_fb_queries = [
+        f'site:facebook.com "looking for {keyword}"',
+        f'site:facebook.com "need {keyword}"',
+        f'site:facebook.com "recommend" "{keyword}"',
+    ]
+    for query in general_fb_queries:
+        try:
+            html = _ddg_post(query)
+            hits = _parse_ddg_html(html, "facebook/ddg")
+            fb_hits = [h for h in hits if "facebook.com" in h.get("link", "")]
+            results.extend(fb_hits)
+            time.sleep(0.6)
+        except Exception as e:
+            print(f"Facebook DDG error: {e}")
             continue
 
     # Deduplicate
@@ -330,18 +327,22 @@ def search_facebook_ddg(keyword: str) -> list[dict]:
             seen.add(r["link"])
             unique.append(r)
 
+    print(f"[Search] Facebook Groups (DDG): {len(unique)} results")
     return unique
 
 
+# Keep old function name as alias for backward compatibility
+def search_facebook_ddg(keyword: str) -> list[dict]:
+    return search_facebook_groups_ddg(keyword)
+
+
 # ══════════════════════════════════════════════════════════════════════════════
-# 4. SERPAPI FALLBACK  (only used when free sources return < MIN_FREE_RESULTS)
-#    Includes a Facebook-specific engine pass for extra coverage
+# 5. SERPAPI FALLBACK
 # ══════════════════════════════════════════════════════════════════════════════
 
-MIN_FREE_RESULTS = 5  # Only call SerpAPI if free sources found fewer than this
+MIN_FREE_RESULTS = 5
 
 def search_serpapi(query: str, api_key: str, engine: str = "google") -> list[dict]:
-    """SerpAPI — paid fallback. Supports google and facebook engines."""
     if not api_key:
         return []
     try:
@@ -350,7 +351,6 @@ def search_serpapi(query: str, api_key: str, engine: str = "google") -> list[dic
         r.raise_for_status()
         data = r.json()
 
-        # Google engine returns organic_results
         if engine == "google":
             raw = data.get("organic_results", [])
             return [{
@@ -360,7 +360,6 @@ def search_serpapi(query: str, api_key: str, engine: str = "google") -> list[dic
                 "source_name": "google/serpapi",
             } for item in raw]
 
-        # Facebook engine returns organic_results with posts
         elif engine == "facebook":
             raw = data.get("organic_results", [])
             return [{
@@ -376,25 +375,23 @@ def search_serpapi(query: str, api_key: str, engine: str = "google") -> list[dic
 
 
 def search_facebook_serpapi(keyword: str, api_key: str) -> list[dict]:
-    """
-    Use SerpAPI's Facebook engine to search public Facebook posts.
-    Only called as a fallback when DDG Facebook search returns too little.
-    Costs ~3 SerpAPI credits (one query per buyer phrase).
-    """
     if not api_key:
         return []
 
     results = []
+    # More targeted queries including groups
     fb_queries = [
+        f'site:facebook.com/groups "looking for {keyword}"',
+        f'site:facebook.com/groups "need {keyword}"',
+        f'site:facebook.com/groups "recommend {keyword}"',
         f"looking for {keyword}",
         f"need {keyword}",
-        f"recommend {keyword}",
     ]
-    for q in fb_queries:
-        hits = search_serpapi(q, api_key, engine="facebook")
-        results.extend(hits)
+    for q in fb_queries[:3]:  # limit to 3 to save credits
+        hits = search_serpapi(q, api_key, engine="google")
+        fb_hits = [h for h in hits if "facebook.com" in h.get("link", "")]
+        results.extend(fb_hits)
 
-    # Deduplicate
     seen = set()
     unique = []
     for r in results:
@@ -406,21 +403,17 @@ def search_facebook_serpapi(keyword: str, api_key: str) -> list[dict]:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# UNIFIED SEARCH — tries all sources, deduplicates, returns combined results
+# UNIFIED SEARCH
 # ══════════════════════════════════════════════════════════════════════════════
 
 def multi_search(keyword: str, serp_key: str = "") -> list[dict]:
     """
     Search all sources in priority order:
-      1. Reddit API        (free — official API, best quality)
-      2. RSS feeds         (free — Reddit, Quora, Hacker News)
-      3. DuckDuckGo        (free — general web buyer-intent queries)
-      3b. Facebook via DDG (free — site:facebook.com buyer-intent queries)
-      4. SerpAPI Google    (paid fallback — general web)
-      4b. SerpAPI Facebook (paid fallback — Facebook engine, ~3 credits)
-
-    SerpAPI is ONLY called when free sources return fewer than MIN_FREE_RESULTS.
-    Returns deduplicated list with standard fields.
+      1. Reddit API              (free)
+      2. RSS feeds               (free)
+      3. DuckDuckGo general      (free)
+      4. Facebook Groups via DDG (free — no token needed, finds public group posts)
+      5. SerpAPI fallback        (paid — only if free sources find < MIN_FREE_RESULTS)
     """
     all_results = []
     seen_links  = set()
@@ -456,16 +449,14 @@ def multi_search(keyword: str, serp_key: str = "") -> list[dict]:
         time.sleep(0.5)
     print(f"[Search] DuckDuckGo general: {len(all_results)} total so far")
 
-    # 3b. Facebook via DuckDuckGo (free)
-    fb_ddg_results = search_facebook_ddg(keyword)
-    add_results(fb_ddg_results)
-    print(f"[Search] Facebook (DDG): {len(fb_ddg_results)} results")
+    # 4. Facebook Groups via DuckDuckGo (free — no token needed)
+    fb_results = search_facebook_groups_ddg(keyword)
+    add_results(fb_results)
 
-    # 4. SerpAPI fallbacks (paid) — only if free sources didn't find enough
+    # 5. SerpAPI fallbacks (paid) — only if free sources didn't find enough
     if len(all_results) < MIN_FREE_RESULTS and serp_key:
         print(f"[Search] Only {len(all_results)} free results — activating SerpAPI fallback")
 
-        # 4a. SerpAPI Google for Reddit/Quora
         serp_queries = [
             f'site:reddit.com "looking for {keyword}"',
             f'site:reddit.com "need {keyword}"',
@@ -474,8 +465,7 @@ def multi_search(keyword: str, serp_key: str = "") -> list[dict]:
         for q in serp_queries:
             add_results(search_serpapi(q, serp_key, engine="google"))
 
-        # 4b. SerpAPI Facebook engine
-        print("[Search] SerpAPI Facebook engine fallback…")
+        # SerpAPI Facebook groups
         add_results(search_facebook_serpapi(keyword, serp_key))
 
     elif not serp_key:
