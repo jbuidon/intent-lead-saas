@@ -82,7 +82,8 @@ def search_stream(
                 return
 
             if total > 0:
-                yield f"data: {json.dumps({'type': 'progress', 'current': 0, 'total': total, 'message': f'Scoring {total} web results with AI (min score: {min_score})…'})}\n\n"
+                _msg2 = f'Scoring {total} web results with AI (min score: {min_score})...'
+                yield f"data: {json.dumps({'type': 'progress', 'current': 0, 'total': total, 'message': _msg2})}\n\n"
 
                 for i, result in enumerate(all_results):
                     try:
@@ -115,7 +116,8 @@ def search_stream(
 
         # ── STEP 2: Facebook Groups search ───────────────────────────────
         if include_fb_groups:
-            yield f"data: {json.dumps({'type': 'progress', 'current': 0, 'total': len(parsed_group_urls), 'message': f'Scanning {len(parsed_group_urls)} Facebook group(s) for keyword: {keyword}…'})}\n\n"
+            _msg3 = f'Scanning {len(parsed_group_urls)} Facebook group(s) for keyword: {keyword}...'
+            yield f"data: {json.dumps({'type': 'progress', 'current': 0, 'total': len(parsed_group_urls), 'message': _msg3})}\n\n"
 
             for gi, group_url in enumerate(parsed_group_urls):
                 try:
@@ -203,9 +205,11 @@ def search_stream(
                                 yield f"data: {json.dumps({'type': 'lead', 'data': lead})}\n\n"
 
                 except PermissionError as ex:
-                    yield f"data: {json.dumps({'type': 'error', 'message': f'FB Group permission error: {str(ex)}'})}\n\n"
+                    _err1 = 'FB Group permission error: ' + str(ex)
+                    yield f"data: {json.dumps({'type': 'error', 'message': _err1})}\n\n"
                 except Exception as ex:
-                    yield f"data: {json.dumps({'type': 'error', 'message': f'FB Group error: {str(ex)}'})}\n\n"
+                    _err2 = 'FB Group error: ' + str(ex)
+                    yield f"data: {json.dumps({'type': 'error', 'message': _err2})}\n\n"
 
                 yield f"data: {json.dumps({'type': 'progress', 'current': gi + 1, 'total': len(parsed_group_urls)})}\n\n"
 
