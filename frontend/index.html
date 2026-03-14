@@ -84,6 +84,73 @@
     .score-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; }
     .score-badge { min-width: 28px; text-align: center; font-family: 'DM Mono', monospace; font-size: 0.85rem; font-weight: 700; color: var(--accent); background: rgba(0,229,160,0.1); border: 1px solid rgba(0,229,160,0.25); border-radius: 6px; padding: 2px 7px; }
 
+    /* ── SCORE SORT / FILTER BAR ── */
+    .results-toolbar {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .results-toolbar.visible { display: flex; }
+    .filter-label {
+      font-size: 0.7rem;
+      font-family: 'DM Mono', monospace;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .score-filter-chips {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    .score-chip {
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border2);
+      background: var(--surface);
+      color: var(--muted2);
+      font-size: 0.73rem;
+      font-family: 'DM Mono', monospace;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .score-chip:hover { border-color: var(--accent); color: var(--accent); }
+    .score-chip.active {
+      background: rgba(0,229,160,0.12);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .score-chip.chip-all.active {
+      background: rgba(255,255,255,0.07);
+      border-color: var(--border2);
+      color: var(--text);
+    }
+    .filter-divider {
+      width: 1px;
+      height: 16px;
+      background: var(--border2);
+      margin: 0 2px;
+    }
+    .sort-chip {
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border2);
+      background: var(--surface);
+      color: var(--muted2);
+      font-size: 0.73rem;
+      font-family: 'DM Mono', monospace;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .sort-chip.active {
+      background: rgba(77,139,255,0.12);
+      border-color: var(--accent2);
+      color: var(--accent2);
+    }
+
     /* PROGRESS BAR */
     #progressWrap { display: none; max-width: 680px; margin: 0 auto 20px; }
     .progress-track { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; margin-bottom: 6px; }
@@ -248,7 +315,6 @@
     .li-score-row { display: flex; align-items: center; gap: 10px; }
     .li-info-box { background: rgba(77,139,255,0.07); border: 1px solid rgba(77,139,255,0.18); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 22px; font-size: 0.82rem; color: var(--muted2); line-height: 1.7; }
     .li-info-box strong { color: var(--text); }
-
   </style>
 </head>
 <body>
@@ -310,9 +376,7 @@
           <button class="btn-primary" id="searchBtn" onclick="doSearch()">Find Leads</button>
         </div>
         <div class="search-actions">
-          <!-- Stop button — shown only while searching -->
           <button class="btn-stop" id="stopBtn" onclick="stopSearch(true)">⏹ Stop</button>
-          <!-- Clear button — shown when results exist -->
           <button class="btn-clear" id="clearResultsBtn" onclick="clearSearchLeads()" style="display:none">🗑 Clear Results</button>
         </div>
         <div class="provider-row">
@@ -349,6 +413,24 @@
       </div>
 
       <div class="error-banner" id="searchError"></div>
+
+      <!-- ── RESULTS TOOLBAR (score filter + sort) ── -->
+      <div class="results-toolbar" id="resultsToolbar">
+        <span class="filter-label">Filter:</span>
+        <div class="score-filter-chips">
+          <button class="score-chip chip-all active" onclick="filterLeads('all', this)">All</button>
+          <button class="score-chip" onclick="filterLeads(9, this)">≥9 🔥</button>
+          <button class="score-chip" onclick="filterLeads(8, this)">≥8</button>
+          <button class="score-chip" onclick="filterLeads(7, this)">≥7</button>
+          <button class="score-chip" onclick="filterLeads(6, this)">≥6</button>
+          <button class="score-chip" onclick="filterLeads(5, this)">≥5</button>
+        </div>
+        <div class="filter-divider"></div>
+        <span class="filter-label">Sort:</span>
+        <button class="sort-chip active" id="sortNewest" onclick="sortLeads('newest', this)">Newest</button>
+        <button class="sort-chip" id="sortScore"  onclick="sortLeads('score', this)">Top Score</button>
+      </div>
+
       <div id="searchResults">
         <div class="empty-state">
           <span class="empty-icon">🎯</span>
@@ -359,8 +441,6 @@
 
     <!-- ══ PAGE: PLATFORMS ══ -->
     <div class="page" id="page-facebook">
-
-      <!-- Platform sub-tabs -->
       <div class="platform-tabs">
         <button class="platform-tab active" id="ptab-fbgroup"  onclick="switchPlatformTab('fbgroup', this)">👥 FB Groups</button>
         <button class="platform-tab"        id="ptab-fbpage"   onclick="switchPlatformTab('fbpage', this)">📘 FB Pages</button>
@@ -433,7 +513,6 @@
           <br><br>
           <strong>Best sources to paste from:</strong> LinkedIn posts asking for recommendations · Comments saying "interested" on relevant posts · Profile About sections mentioning problems you solve · Headlines like "Looking for SEO agency"
         </div>
-
         <div class="li-form">
           <div class="li-form-title">Paste LinkedIn Content</div>
           <div class="li-row single">
@@ -455,23 +534,19 @@
             </div>
           </div>
         </div>
-
         <div class="li-queue">
           <div class="li-queue-label">QUEUE</div>
           <div id="liQueue"></div>
         </div>
-
         <div class="li-score-row">
           <button class="btn-primary" id="liScoreBtn" onclick="scoreLinkedinItems()" disabled>🧠 Score with AI</button>
           <span style="font-size:0.78rem;color:var(--muted)">Add items to the queue first, then score them all at once</span>
         </div>
-
         <div class="error-banner" id="liError"></div>
         <div id="liResults" style="margin-top:24px">
           <div class="empty-state"><span class="empty-icon">💼</span><p>Paste LinkedIn content above, add it to the queue, then click Score with AI.</p></div>
         </div>
       </div>
-
     </div>
 
     <!-- ══ PAGE: DAILY LEADS ══ -->
@@ -542,7 +617,6 @@
           </div>
         </div>
 
-        <!-- Facebook -->
         <div class="settings-card full">
           <div class="settings-card-header"><div class="s-icon b">👥</div><div><div class="s-card-title">Facebook Groups</div><div class="s-card-desc">Graph API token for scanning private groups you're a member of</div></div></div>
           <div class="field">
@@ -561,7 +635,6 @@
           </div>
         </div>
 
-        <!-- Scanner config -->
         <div class="settings-card full">
           <div class="settings-card-header"><div class="s-icon g">📡</div><div><div class="s-card-title">Scanner Configuration</div><div class="s-card-desc">Background lead detection settings</div></div></div>
           <div class="toggle-row">
@@ -593,7 +666,6 @@
 
       </div>
     </div>
-    <!-- /settings -->
 
   </main>
 </div>
