@@ -4,7 +4,7 @@ import datetime
 from sources import multi_search
 from extractor import extract_leads
 from intent_ai import score_intent
-from database import save_lead, get_keywords
+from database import save_lead, get_keywords, get_setting
 
 # Fallback keywords if none saved in DB yet
 DEFAULT_KEYWORDS = [
@@ -32,13 +32,25 @@ def scan_once():
     global scanner_state
     print("🔍 Scanner: Starting scan cycle...")
 
-    # Load keywords from DB (set via Settings page) — fall back to defaults
+    # Load keywords: DB first → TRACKED_KEYWORDS env var → hardcoded defaults
     keywords = get_keywords()
     if not keywords:
-        keywords = DEFAULT_KEYWORDS
-        print(f"[Scanner] No keywords in DB, using defaults: {keywords}")
+        env_kw = os.environ.get("TRACKED_KEYWORDS", "")
+        if env_kw:
+            keywords = [k.strip() for k in env_kw.split(",") if k.strip()]
+            print(f"[Scanner] Keywords from env var: {keywords}")
+        else:
+            keywords = DEFAULT_KEYWORDS
+            print(f"[Scanner] No keywords in DB or env, using defaults: {keywords}")
     else:
         print(f"[Scanner] Keywords from settings: {keywords}")
+
+    # Load min_score: DB setting → env var → default 5
+    try:
+        min_score = float(get_setting("min_score", "") or os.environ.get("MIN_SCORE", "5"))
+    except ValueError:
+        min_score = 5.0
+    print(f"[Scanner] Min intent score: {min_score}")
 
     scanner_state["status"] = "running"
     scanner_state["keywords"] = keywords
@@ -60,7 +72,7 @@ def scan_once():
                     }])
                     for lead in extracted:
                         score = score_intent(lead["post_text"])
-                        if score >= 7:
+                        if score >= min_score:
                             save_lead(lead["post_text"], lead["post_url"], score, keyword=keyword, post_date=result.get("post_date", ""))
                             total_found += 1
                             print(f"✅ [{keyword}] {score}: {lead['post_text'][:80]}")
