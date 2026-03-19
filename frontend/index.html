@@ -553,9 +553,13 @@
       <div class="tab-row" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <div style="display:flex;gap:8px">
           <button class="tab-btn active" onclick="switchDailyTab('all', this)">All Leads</button>
-          <button class="tab-btn" onclick="switchDailyTab('high', this)">High Intent ≥8</button>
+          <button class="tab-btn" onclick="switchDailyTab('mid', this)">Mid ≥6</button>
+          <button class="tab-btn" onclick="switchDailyTab('high', this)">High ≥8</button>
         </div>
-        <button id="clearDailyBtn" onclick="clearDailyLeads()" style="display:none;padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:12px">🗑 Clear Results</button>
+        <div style="display:flex;gap:8px">
+          <button id="scanNowBtn" onclick="scanNow()" style="padding:6px 14px;border-radius:8px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-size:12px;font-weight:600">⚡ Scan Now</button>
+          <button id="clearDailyBtn" onclick="clearDailyLeads()" style="display:none;padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:12px">🗑 Clear Results</button>
+        </div>
       </div>
       <div class="error-banner" id="dailyError"></div>
       <div id="dailyResults">
@@ -648,6 +652,14 @@
             <label class="toggle"><input type="checkbox" id="set-highonly"><span class="toggle-track"></span></label>
           </div>
           <div class="field" style="margin-top:18px">
+            <label>MINIMUM INTENT SCORE TO SAVE (1–10)</label>
+            <div style="display:flex;align-items:center;gap:12px">
+              <input type="range" id="set-minscore" min="1" max="10" step="1" value="5" style="flex:1" oninput="document.getElementById('minscoreVal').textContent=this.value">
+              <span id="minscoreVal" style="font-family:'DM Mono',monospace;font-size:1.1rem;color:var(--accent);min-width:20px">5</span>
+            </div>
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">Only leads scoring at or above this number will be saved to Daily Leads.</div>
+          </div>
+          <div class="field">
             <label>TRACKED KEYWORDS (one per line)</label>
             <textarea id="set-keywords" placeholder="seo agency&#10;ai receptionist&#10;roof repair"></textarea>
           </div>
