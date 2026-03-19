@@ -12,7 +12,7 @@ from sources import multi_search
 from extractor import extract_leads
 from intent_ai import score_intent
 from database import save_lead, get_all_leads, save_keywords, get_keywords
-from scanner import run_scanner
+from scanner import run_scanner, scanner_state
 from facebook import scan_group, get_group_posts, extract_group_id
 from platforms import scan_facebook_page, scan_instagram, score_linkedin_paste
 
@@ -292,3 +292,31 @@ def linkedin_score(body: dict):
     provider_key = body.get("provider_key", "")
     if not items: raise HTTPException(status_code=400, detail="No items provided")
     return score_linkedin_paste(items, provider, provider_key)
+
+
+@app.get("/scanner/status")
+def get_scanner_status():
+    """Return current background scanner state (last run, next run, keywords)."""
+    return scanner_state
+
+
+@app.get("/facebook/my-groups")
+def facebook_my_groups(fb_token: str = Query(...)):
+    """Fetch all Facebook groups the token owner is a member of."""
+    import requests as req
+    if not fb_token.strip():
+        raise HTTPException(status_code=400, detail="fb_token is required")
+    try:
+        r = req.get(
+            "https://graph.facebook.com/v19.0/me/groups",
+            params={"fields": "id,name,member_count", "access_token": fb_token.strip(), "limit": 100},
+            timeout=10,
+        )
+        if r.status_code == 403:
+            raise HTTPException(status_code=403, detail="Token lacks groups_access_member_info permission")
+        r.raise_for_status()
+        return r.json().get("data", [])
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
