@@ -11,8 +11,8 @@ load_dotenv()
 from sources import multi_search
 from extractor import extract_leads
 from intent_ai import score_intent
-from database import save_lead, get_all_leads, save_keywords, get_keywords
-from scanner import run_scanner, scanner_state
+from database import save_lead, get_all_leads, save_keywords, get_keywords, get_setting, save_setting
+from scanner import run_scanner, scanner_state, scan_once
 from facebook import scan_group, get_group_posts, extract_group_id
 from platforms import scan_facebook_page, scan_instagram, score_linkedin_paste
 
@@ -243,17 +243,20 @@ def daily_leads():
 
 @app.post("/keywords")
 def update_keywords(body: dict):
-    """Save tracked keywords from frontend Settings so scanner picks them up."""
+    """Save tracked keywords and optional min_score from frontend Settings."""
     keywords = body.get("keywords", [])
     if not isinstance(keywords, list):
         raise HTTPException(status_code=400, detail="keywords must be a list")
     save_keywords([k.strip() for k in keywords if k.strip()])
+    min_score = body.get("min_score")
+    if min_score is not None:
+        save_setting("min_score", str(min_score))
     return {"saved": len(keywords)}
 
 
 @app.get("/keywords")
 def fetch_keywords():
-    return {"keywords": get_keywords()}
+    return {"keywords": get_keywords(), "min_score": get_setting("min_score", "5")}
 
 
 @app.post("/facebook/scan")
@@ -300,6 +303,17 @@ def linkedin_score(body: dict):
 def get_scanner_status():
     """Return current background scanner state (last run, next run, keywords)."""
     return scanner_state
+
+
+@app.post("/scanner/run-now")
+def scanner_run_now():
+    """Trigger an immediate scan in a background thread."""
+    import threading
+    if scanner_state.get("status") == "running":
+        return {"message": "Scanner is already running."}
+    thread = threading.Thread(target=scan_once, daemon=True)
+    thread.start()
+    return {"message": "Scan started."}
 
 
 @app.get("/facebook/my-groups")
