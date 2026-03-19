@@ -102,8 +102,9 @@ def search_stream(
                             if score >= min_score:
                                 e["intent_score"]  = score
                                 e["source_name"]   = result.get("source_name", "web")
+                                e["post_date"]     = result.get("post_date", "")
                                 e["created_at"]    = result.get("post_date", "")
-                                save_lead(e["post_text"], e["post_url"], score)
+                                save_lead(e["post_text"], e["post_url"], score, post_date=result.get("post_date", ""))
                                 yield f"data: {json.dumps({'type': 'lead', 'data': e})}\n\n"
 
                     except Exception as ex:
@@ -234,6 +235,7 @@ def daily_leads():
             "intent": r[3],
             "created_at": r[4],
             "keyword": r[5] if len(r) > 5 else "",
+            "post_date": r[6] if len(r) > 6 else "",
         }
         for r in rows
     ]
