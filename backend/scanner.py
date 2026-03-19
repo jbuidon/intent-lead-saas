@@ -84,6 +84,11 @@ def scan_once():
             print(f"Scanner keyword error '{keyword}': {e}")
             continue
 
+        # Wait between keywords to avoid DDG rate limiting on Render
+        if keyword != keywords[-1]:
+            print(f"[Scanner] Waiting 60s before next keyword (DDG rate limit protection)...")
+            time.sleep(60)
+
     now = datetime.datetime.utcnow()
     next_run = now + datetime.timedelta(seconds=SCAN_INTERVAL_SECONDS)
     scanner_state["last_run"] = now.isoformat() + "Z"
