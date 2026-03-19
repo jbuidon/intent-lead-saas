@@ -550,9 +550,12 @@
 
     <!-- ══ PAGE: DAILY LEADS ══ -->
     <div class="page" id="page-daily">
-      <div class="tab-row">
-        <button class="tab-btn active" onclick="switchDailyTab('all', this)">All Leads</button>
-        <button class="tab-btn" onclick="switchDailyTab('high', this)">High Intent ≥8</button>
+      <div class="tab-row" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;gap:8px">
+          <button class="tab-btn active" onclick="switchDailyTab('all', this)">All Leads</button>
+          <button class="tab-btn" onclick="switchDailyTab('high', this)">High Intent ≥8</button>
+        </div>
+        <button id="clearDailyBtn" onclick="clearDailyLeads()" style="display:none;padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:12px">🗑 Clear Results</button>
       </div>
       <div class="error-banner" id="dailyError"></div>
       <div id="dailyResults">
