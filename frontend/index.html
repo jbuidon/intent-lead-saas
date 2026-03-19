@@ -459,6 +459,11 @@
             <li>Paste the token in <strong>⚙ Settings → Facebook Token</strong></li>
           </ol>
         </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+          <button class="btn-secondary" id="loadMyGroupsBtn" onclick="loadMyGroups()" style="font-size:0.8rem;padding:7px 14px">⬇ Load My Groups</button>
+          <span style="font-size:0.75rem;color:var(--muted)">Auto-fill groups you're a member of</span>
+          <span id="myGroupsNote" style="font-size:0.75rem;color:var(--accent);display:none"></span>
+        </div>
         <div class="fb-input-row">
           <textarea id="fb-groups-input" placeholder="https://www.facebook.com/groups/123456789&#10;https://www.facebook.com/groups/mygroupname&#10;(one URL per line — you must be a member)"></textarea>
           <button class="btn-primary" id="fbScanBtn" onclick="scanFacebookGroups()" style="align-self:flex-start;padding:12px 20px">🔍 Scan Groups</button>
@@ -656,6 +661,13 @@
               <option value="gemini">Google — Gemini 1.5 Flash</option>
               <option value="claude">Anthropic — Claude Haiku</option>
             </select>
+          </div>
+          <div style="margin-top:18px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;font-size:0.8rem">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <span style="font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em">SCANNER STATUS</span>
+              <button class="btn-secondary" onclick="checkScannerStatus()" style="font-size:0.72rem;padding:4px 10px">↻ Refresh</button>
+            </div>
+            <div id="scannerStatusText" style="color:var(--muted2)">Click Refresh to check scanner status.</div>
           </div>
           <div class="save-row">
             <button class="btn-primary" onclick="saveSettings()">Save Settings</button>
