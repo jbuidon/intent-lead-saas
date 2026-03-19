@@ -415,6 +415,92 @@ def search_facebook_serpapi(keyword: str, api_key: str) -> list[dict]:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# 6. USA-FOCUSED PLATFORM SEARCH (all free via DuckDuckGo site: queries)
+#    Targets platforms where US businesses and consumers actively seek services
+# ══════════════════════════════════════════════════════════════════════════════
+
+USA_PLATFORM_QUERIES = [
+    # Quora — high-intent questions from US professionals
+    ('site:quora.com "{kw}"',                          "quora"),
+    ('site:quora.com "looking for {kw}"',              "quora"),
+    ('site:quora.com "best {kw}" "recommend"',         "quora"),
+
+    # IndieHackers — startup founders, US-heavy, actively hiring/buying
+    ('site:indiehackers.com "{kw}" "looking for"',     "indiehackers"),
+    ('site:indiehackers.com "{kw}" "need help"',       "indiehackers"),
+    ('site:indiehackers.com "{kw}" "recommend"',       "indiehackers"),
+
+    # ProductHunt Discussions — early adopters, US tech buyers
+    ('site:producthunt.com/discussions "{kw}"',        "producthunt"),
+
+    # G2 & Capterra — people actively shopping for services/software
+    ('site:g2.com "{kw}" "looking for" OR "alternative"',  "g2"),
+    ('site:capterra.com "{kw}" "looking for"',         "capterra"),
+
+    # Upwork — job posts = real buyers ready to spend money
+    ('site:upwork.com/jobs "{kw}"',                    "upwork"),
+    ('site:upwork.com "{kw}" "looking for"',           "upwork"),
+
+    # Craigslist — USA local service requests
+    ('site:craigslist.org "services" "{kw}"',          "craigslist"),
+    ('site:craigslist.org "{kw}" "looking for"',       "craigslist"),
+
+    # Alignable — US small business owner network
+    ('site:alignable.com "{kw}"',                      "alignable"),
+
+    # LinkedIn public posts (limited but worth trying)
+    ('site:linkedin.com/posts "{kw}" "looking for"',   "linkedin"),
+    ('site:linkedin.com/posts "{kw}" "need a"',        "linkedin"),
+
+    # Nextdoor — USA neighborhood-level service requests
+    ('site:nextdoor.com "{kw}" "recommend"',           "nextdoor"),
+    ('site:nextdoor.com "{kw}" "looking for"',         "nextdoor"),
+
+    # Thumbtack & Bark — US service marketplace requests
+    ('site:thumbtack.com "{kw}"',                      "thumbtack"),
+    ('site:bark.com "{kw}"',                           "bark.com"),
+
+    # Clutch — B2B service seekers (US-focused agency/freelance)
+    ('site:clutch.co "{kw}" "looking for"',            "clutch.co"),
+
+    # Warrior Forum & Digital Point — US marketing/business community
+    ('site:warriorforum.com "{kw}" "looking for"',     "warriorforum"),
+    ('site:digitalpoint.com "{kw}" "looking for"',     "digitalpoint"),
+]
+
+def search_usa_platforms(keyword: str) -> list[dict]:
+    """
+    Search USA-focused platforms via DuckDuckGo site: queries.
+    Targets Quora, IndieHackers, ProductHunt, G2, Upwork, Craigslist,
+    Alignable, LinkedIn, Nextdoor, Thumbtack, Bark, Clutch, and more.
+    No API keys needed — all free.
+    """
+    results = []
+
+    for template, source_name in USA_PLATFORM_QUERIES:
+        query = template.replace("{kw}", keyword)
+        try:
+            html = _ddg_post(query)
+            hits = _parse_ddg_html(html, source_name)
+            results.extend(hits)
+            time.sleep(0.6)
+        except Exception as e:
+            print(f"USA platform search error ({source_name}): {e}")
+            continue
+
+    # Deduplicate
+    seen = set()
+    unique = []
+    for r in results:
+        if r["link"] not in seen:
+            seen.add(r["link"])
+            unique.append(r)
+
+    print(f"[Search] USA Platforms: {len(unique)} results")
+    return unique
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # UNIFIED SEARCH
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -425,7 +511,8 @@ def multi_search(keyword: str, serp_key: str = "") -> list[dict]:
       2. RSS feeds               (free)
       3. DuckDuckGo general      (free)
       4. Facebook Groups via DDG (free — no token needed, finds public group posts)
-      5. SerpAPI fallback        (paid — only if free sources find < MIN_FREE_RESULTS)
+      5. USA Platforms via DDG   (free — Quora, IndieHackers, Upwork, Craigslist, LinkedIn, etc.)
+      6. SerpAPI fallback        (paid — only if free sources find < MIN_FREE_RESULTS)
     """
     all_results = []
     seen_links  = set()
@@ -465,7 +552,11 @@ def multi_search(keyword: str, serp_key: str = "") -> list[dict]:
     fb_results = search_facebook_groups_ddg(keyword)
     add_results(fb_results)
 
-    # 5. SerpAPI fallbacks (paid) — only if free sources didn't find enough
+    # 5. USA-focused platforms via DuckDuckGo (free)
+    usa_results = search_usa_platforms(keyword)
+    add_results(usa_results)
+
+    # 6. SerpAPI fallbacks (paid) — only if free sources didn't find enough
     if len(all_results) < MIN_FREE_RESULTS and serp_key:
         print(f"[Search] Only {len(all_results)} free results — activating SerpAPI fallback")
 
