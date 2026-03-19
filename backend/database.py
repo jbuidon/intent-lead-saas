@@ -108,3 +108,30 @@ def save_keywords(keywords: list[str]):
             conn.close()
         except Exception as e:
             print(f"Database save_keywords error: {e}")
+
+
+def get_setting(key: str, default: str = "") -> str:
+    """Get a single setting value from the settings table."""
+    with _lock:
+        try:
+            conn = _get_connection()
+            conn.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+            row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+            conn.close()
+            return row[0] if row else default
+        except Exception as e:
+            print(f"Database get_setting error: {e}")
+            return default
+
+
+def save_setting(key: str, value: str):
+    """Save a single setting value to the settings table."""
+    with _lock:
+        try:
+            conn = _get_connection()
+            conn.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+            conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"Database save_setting error: {e}")
