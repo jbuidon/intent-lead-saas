@@ -279,25 +279,16 @@ def search_duckduckgo(query: str) -> list[dict]:
 # These queries specifically target public Facebook group posts
 # where real people are asking for help, recommendations, or showing buying intent
 FB_GROUP_QUERIES = [
-    # Direct asks in groups
+    # Reduced to 3 essential queries to avoid DDG rate limiting on Render
     'site:facebook.com/groups "{kw}" "looking for"',
     'site:facebook.com/groups "{kw}" "anyone recommend"',
-    'site:facebook.com/groups "{kw}" "can anyone"',
     'site:facebook.com/groups "{kw}" "need help"',
-    'site:facebook.com/groups "{kw}" "how much"',
-    'site:facebook.com/groups "{kw}" "where can i"',
-    'site:facebook.com/groups "{kw}" "struggling"',
-    'site:facebook.com/groups "{kw}" "frustrated"',
-    # Public Facebook posts (not just groups)
-    'site:facebook.com "{kw}" "looking for" "recommend"',
-    'site:facebook.com "{kw}" "need a" "help"',
 ]
 
 def search_facebook_groups_ddg(keyword: str) -> list[dict]:
     """
     Search public Facebook group posts via DuckDuckGo site: operator.
-    No API key or Facebook token needed.
-    Finds public posts where people ask for recommendations or show buying intent.
+    Kept to 3 queries max to avoid DDG rate limiting on Render.
     """
     results = []
 
@@ -309,26 +300,9 @@ def search_facebook_groups_ddg(keyword: str) -> list[dict]:
             # Only keep results that actually link to facebook.com
             fb_hits = [h for h in hits if "facebook.com" in h.get("link", "")]
             results.extend(fb_hits)
-            time.sleep(0.8)  # Be polite to DDG — slightly longer delay for group queries
+            time.sleep(2.0)  # longer delay to stay under DDG rate limit
         except Exception as e:
             print(f"Facebook Groups DDG error ('{query[:50]}'): {e}")
-            continue
-
-    # Also run a few general Facebook searches (not just groups)
-    general_fb_queries = [
-        f'site:facebook.com "looking for {keyword}"',
-        f'site:facebook.com "need {keyword}"',
-        f'site:facebook.com "recommend" "{keyword}"',
-    ]
-    for query in general_fb_queries:
-        try:
-            html = _ddg_post(query)
-            hits = _parse_ddg_html(html, "facebook/ddg")
-            fb_hits = [h for h in hits if "facebook.com" in h.get("link", "")]
-            results.extend(fb_hits)
-            time.sleep(0.6)
-        except Exception as e:
-            print(f"Facebook DDG error: {e}")
             continue
 
     # Deduplicate
@@ -420,60 +394,29 @@ def search_facebook_serpapi(keyword: str, api_key: str) -> list[dict]:
 # ══════════════════════════════════════════════════════════════════════════════
 
 USA_PLATFORM_QUERIES = [
-    # Quora — high-intent questions from US professionals
+    # Quora — high-intent questions from US professionals (1 broad query)
     ('site:quora.com "{kw}"',                          "quora"),
-    ('site:quora.com "looking for {kw}"',              "quora"),
-    ('site:quora.com "best {kw}" "recommend"',         "quora"),
 
-    # IndieHackers — startup founders, US-heavy, actively hiring/buying
-    ('site:indiehackers.com "{kw}" "looking for"',     "indiehackers"),
-    ('site:indiehackers.com "{kw}" "need help"',       "indiehackers"),
-    ('site:indiehackers.com "{kw}" "recommend"',       "indiehackers"),
-
-    # ProductHunt Discussions — early adopters, US tech buyers
-    ('site:producthunt.com/discussions "{kw}"',        "producthunt"),
-
-    # G2 & Capterra — people actively shopping for services/software
-    ('site:g2.com "{kw}" "looking for" OR "alternative"',  "g2"),
-    ('site:capterra.com "{kw}" "looking for"',         "capterra"),
-
-    # Upwork — job posts = real buyers ready to spend money
+    # Upwork — job posts = real buyers ready to spend money (best ROI)
     ('site:upwork.com/jobs "{kw}"',                    "upwork"),
-    ('site:upwork.com "{kw}" "looking for"',           "upwork"),
+
+    # IndieHackers — startup founders, US-heavy
+    ('site:indiehackers.com "{kw}"',                   "indiehackers"),
+
+    # LinkedIn public posts
+    ('site:linkedin.com/posts "{kw}" "looking for"',   "linkedin"),
 
     # Craigslist — USA local service requests
-    ('site:craigslist.org "services" "{kw}"',          "craigslist"),
-    ('site:craigslist.org "{kw}" "looking for"',       "craigslist"),
+    ('site:craigslist.org "{kw}"',                     "craigslist"),
 
-    # Alignable — US small business owner network
-    ('site:alignable.com "{kw}"',                      "alignable"),
-
-    # LinkedIn public posts (limited but worth trying)
-    ('site:linkedin.com/posts "{kw}" "looking for"',   "linkedin"),
-    ('site:linkedin.com/posts "{kw}" "need a"',        "linkedin"),
-
-    # Nextdoor — USA neighborhood-level service requests
-    ('site:nextdoor.com "{kw}" "recommend"',           "nextdoor"),
-    ('site:nextdoor.com "{kw}" "looking for"',         "nextdoor"),
-
-    # Thumbtack & Bark — US service marketplace requests
-    ('site:thumbtack.com "{kw}"',                      "thumbtack"),
-    ('site:bark.com "{kw}"',                           "bark.com"),
-
-    # Clutch — B2B service seekers (US-focused agency/freelance)
-    ('site:clutch.co "{kw}" "looking for"',            "clutch.co"),
-
-    # Warrior Forum & Digital Point — US marketing/business community
-    ('site:warriorforum.com "{kw}" "looking for"',     "warriorforum"),
-    ('site:digitalpoint.com "{kw}" "looking for"',     "digitalpoint"),
+    # Warrior Forum — US marketing/business community
+    ('site:warriorforum.com "{kw}"',                   "warriorforum"),
 ]
 
 def search_usa_platforms(keyword: str) -> list[dict]:
     """
     Search USA-focused platforms via DuckDuckGo site: queries.
-    Targets Quora, IndieHackers, ProductHunt, G2, Upwork, Craigslist,
-    Alignable, LinkedIn, Nextdoor, Thumbtack, Bark, Clutch, and more.
-    No API keys needed — all free.
+    Kept to 6 queries max to avoid DDG rate limiting on Render.
     """
     results = []
 
@@ -483,7 +426,7 @@ def search_usa_platforms(keyword: str) -> list[dict]:
             html = _ddg_post(query)
             hits = _parse_ddg_html(html, source_name)
             results.extend(hits)
-            time.sleep(0.6)
+            time.sleep(2.0)  # longer delay to avoid DDG rate limiting
         except Exception as e:
             print(f"USA platform search error ({source_name}): {e}")
             continue
