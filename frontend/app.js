@@ -694,6 +694,7 @@ async function loadDailyLeads() {
       post_text:    r.post,
       post_url:     r.url,
       intent_score: r.intent,
+      post_date:    r.post_date || '',
       created_at:   r.post_date || r.created_at,
       keyword:      r.keyword || '',
       name: 'Stored Lead',
@@ -780,7 +781,18 @@ function renderLeads(leads, containerId, providerLabel) {
       <p>No buyer-intent leads found. Try a different keyword or check your API keys.</p></div>`;
     return;
   }
-  const sorted = [...leads].sort((a, b) => b.intent_score - a.intent_score);
+  let sorted;
+  if (providerLabel === 'stored') {
+    // Daily Leads: sort by post date descending (newest first)
+    sorted = [...leads].sort((a, b) => {
+      const da = new Date(a.created_at || a.post_date || 0).getTime();
+      const db = new Date(b.created_at || b.post_date || 0).getTime();
+      return db - da;
+    });
+  } else {
+    // Live search: sort by intent score descending
+    sorted = [...leads].sort((a, b) => b.intent_score - a.intent_score);
+  }
   container.innerHTML = `<div class="leads-header"><div class="leads-title">${sorted.length} Leads</div></div>`
     + sorted.map(l => buildLeadCard(l, providerLabel)).join('');
 }
