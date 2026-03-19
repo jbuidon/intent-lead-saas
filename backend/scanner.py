@@ -61,7 +61,7 @@ def scan_once():
                     for lead in extracted:
                         score = score_intent(lead["post_text"])
                         if score >= 7:
-                            save_lead(lead["post_text"], lead["post_url"], score, keyword=keyword)
+                            save_lead(lead["post_text"], lead["post_url"], score, keyword=keyword, post_date=result.get("post_date", ""))
                             total_found += 1
                             print(f"✅ [{keyword}] {score}: {lead['post_text'][:80]}")
                 except Exception as e:
