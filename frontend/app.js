@@ -618,15 +618,49 @@ function renderFacebookResults(results) {
 }
 
 // ─── DAILY LEADS ──────────────────────────────────────────────────────────────
+const DAILY_STORAGE_KEY = 'lr_daily_leads';
+
+function saveDailyLeadsCache(leads) {
+  try { localStorage.setItem(DAILY_STORAGE_KEY, JSON.stringify(leads)); } catch(e) {}
+}
+
+function loadDailyLeadsCache() {
+  try {
+    const raw = localStorage.getItem(DAILY_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+
+function clearDailyLeads() {
+  if (!confirm('Clear all cached daily leads from this browser? (This does not delete them from the server.)')) return;
+  localStorage.removeItem(DAILY_STORAGE_KEY);
+  allDailyLeads = [];
+  document.getElementById('dailyBadge').textContent = '0';
+  document.getElementById('clearDailyBtn').style.display = 'none';
+  document.getElementById('dailyResults').innerHTML =
+    '<div class="empty-state"><span class="empty-icon">📡</span><p>Cleared. Reload the page to re-fetch from server.</p></div>';
+}
+
 async function loadDailyLeads() {
   const s = getSettings();
   const container = document.getElementById('dailyResults');
   hideError('dailyError');
+
+  // Show cached data immediately (so page isn't blank on refresh)
+  const cached = loadDailyLeadsCache();
+  if (cached && cached.length > 0) {
+    allDailyLeads = cached;
+    document.getElementById('dailyBadge').textContent = allDailyLeads.length;
+    document.getElementById('clearDailyBtn').style.display = '';
+    renderDailyTab();
+  }
+
   if (!s.backend) {
-    container.innerHTML = '<div class="empty-state"><span class="empty-icon">🔌</span><p>Add your backend URL in Settings first.</p></div>';
+    if (!cached) container.innerHTML = '<div class="empty-state"><span class="empty-icon">🔌</span><p>Add your backend URL in Settings first.</p></div>';
     return;
   }
-  container.innerHTML = '<div class="loading-state"><div class="pulse-ring"></div><p>Loading stored leads…</p></div>';
+
+  // Fetch fresh data in background
   try {
     const res = await fetch(`${s.backend}/daily-leads`, { signal: AbortSignal.timeout(15000) });
     if (!res.ok) throw new Error(`Server error ${res.status}`);
@@ -639,15 +673,25 @@ async function loadDailyLeads() {
       keyword:      r.keyword || '',
       name: 'Stored Lead',
     }));
+    saveDailyLeadsCache(allDailyLeads);
     document.getElementById('dailyBadge').textContent = allDailyLeads.length;
+    document.getElementById('clearDailyBtn').style.display = allDailyLeads.length > 0 ? '' : 'none';
     renderDailyTab();
   } catch (e) {
-    showError('dailyError', e.message);
-    container.innerHTML = '';
+    if (!cached) {
+      showError('dailyError', e.message);
+      container.innerHTML = '';
+    }
+    // If we have cached data, silently fail — cached results stay visible
   }
 }
 
 async function loadDailyCount() {
+  // Show cached count immediately
+  const cached = loadDailyLeadsCache();
+  if (cached && cached.length > 0) {
+    document.getElementById('dailyBadge').textContent = cached.length;
+  }
   const s = getSettings();
   if (!s.backend) return;
   try {
