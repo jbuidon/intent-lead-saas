@@ -47,7 +47,7 @@ def search_reddit(keyword: str, limit: int = 25) -> list[dict]:
             "sort": "new",
             "limit": limit,
             "type": "link",
-            "t": "month",
+            "t": "week",
         }
         r = requests.get(url, params=params, headers=HEADERS, timeout=10)
         r.raise_for_status()
@@ -78,7 +78,7 @@ def search_reddit(keyword: str, limit: int = 25) -> list[dict]:
     for subreddit in BUYER_SUBREDDITS[:8]:
         try:
             url = f"https://www.reddit.com/r/{subreddit}/search.json"
-            params = {"q": keyword, "restrict_sr": "1", "sort": "new", "limit": 10, "t": "month"}
+            params = {"q": keyword, "restrict_sr": "1", "sort": "new", "limit": 10, "t": "week"}
             r = requests.get(url, params=params, headers=HEADERS, timeout=8)
             if r.status_code == 429:
                 time.sleep(2)
