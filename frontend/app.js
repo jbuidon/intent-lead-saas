@@ -241,8 +241,7 @@ async function doSearch() {
     return;
   }
 
-  // Reset state — start fresh search but keep old leads visible until new ones arrive
-  searchLeads = [];
+  // Keep existing results — new leads will stack on top
   isSearching = true;
   setSearchUI('searching');
 
@@ -339,9 +338,11 @@ function stopSearch(userStopped = true) {
   }
 
   if (searchLeads.length === 0 && !userStopped) {
-    document.getElementById('searchResults').innerHTML =
-      `<div class="empty-state"><span class="empty-icon">🔍</span>
-       <p>No buyer-intent leads found for this keyword. Try something more specific.</p></div>`;
+    const note = document.getElementById('stopNote');
+    if (note) {
+      note.textContent = 'No buyer-intent leads found for this keyword. Try something more specific.';
+      note.style.display = 'block';
+    }
   }
 }
 
@@ -358,7 +359,7 @@ function setSearchUI(state) {
     progress.style.display = 'block';
     if (stopNote) stopNote.style.display = 'none';
     document.getElementById('statsRow').style.display = 'none';
-    // Only show loading if no previous results — otherwise keep old results visible
+    // Only show loading placeholder if there are no results yet
     const existing = document.getElementById('searchResults');
     if (!existing || existing.querySelector('.loading-state, .empty-state')) {
       document.getElementById('searchResults').innerHTML =
@@ -368,6 +369,11 @@ function setSearchUI(state) {
           <p class="loading-sub">Sources: Reddit → RSS feeds → DuckDuckGo → SerpAPI (fallback)</p>
           <p class="loading-sub" style="margin-top:4px">Click ⏹ Stop anytime to cancel</p>
         </div>`;
+    }
+    // If results already exist, just show a subtle "scanning" note
+    if (stopNote && !existing?.querySelector('.loading-state, .empty-state')) {
+      stopNote.textContent = 'Scanning… new leads will appear at the top.';
+      stopNote.style.display = 'block';
     }
   } else {
     searchBtn.disabled = false;
@@ -887,6 +893,81 @@ function renderFilteredLeads() {
 function showResultsToolbar(show) {
   const toolbar = document.getElementById('resultsToolbar');
   if (toolbar) toolbar.classList.toggle('visible', show);
+}
+
+// ─── LOAD MY FACEBOOK GROUPS ─────────────────────────────────────────────────
+async function loadMyGroups() {
+  const s = getSettings();
+  const note = document.getElementById('myGroupsNote');
+  const btn  = document.getElementById('loadMyGroupsBtn');
+
+  if (!s.fbtoken) {
+    showError('fbError', 'No Facebook token configured. Go to ⚙ Settings → Facebook Token.');
+    return;
+  }
+  if (!s.backend) {
+    showError('fbError', 'No backend URL. Add it in ⚙ Settings.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Loading…';
+  if (note) { note.textContent = ''; note.style.display = 'none'; }
+
+  try {
+    const res = await fetch(`${s.backend}/facebook/my-groups?fb_token=${encodeURIComponent(s.fbtoken)}`, {
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Server error ${res.status}`);
+    }
+    const groups = await res.json();
+    if (!groups.length) {
+      if (note) { note.textContent = 'No groups found (token may lack permission).'; note.style.display = 'inline'; }
+      return;
+    }
+    // Populate the textarea with group URLs
+    const urls = groups.map(g => `https://www.facebook.com/groups/${g.id}`).join('\n');
+    document.getElementById('fb-groups-input').value = urls;
+    localStorage.setItem(KEYS.fbgroups, urls);
+    if (note) { note.textContent = `✓ ${groups.length} group${groups.length !== 1 ? 's' : ''} loaded`; note.style.display = 'inline'; }
+  } catch (e) {
+    showError('fbError', 'Could not load groups: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⬇ Load My Groups';
+  }
+}
+
+// ─── SCANNER STATUS ───────────────────────────────────────────────────────────
+async function checkScannerStatus() {
+  const s = getSettings();
+  const el = document.getElementById('scannerStatusText');
+  if (!s.backend) { el.textContent = 'Add a backend URL in settings first.'; return; }
+
+  el.textContent = 'Checking…';
+  try {
+    const res = await fetch(`${s.backend}/scanner/status`, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+    const d = await res.json();
+
+    const statusColor = d.status === 'running' ? 'var(--accent)' : d.status === 'error' ? 'var(--warn)' : 'var(--muted2)';
+    const lastRan  = d.last_run  ? formatDate(d.last_run)  : 'not yet';
+    const nextRun  = d.next_run  ? formatDate(d.next_run)  : 'soon';
+    const kwList   = (d.keywords || []).join(', ') || 'none (using defaults)';
+
+    el.innerHTML = `
+      <span style="color:${statusColor};font-weight:600">● ${d.status}</span>
+      &nbsp;·&nbsp; Last ran: <strong>${lastRan}</strong>
+      &nbsp;·&nbsp; Next run: <strong>${nextRun}</strong>
+      &nbsp;·&nbsp; Leads found last cycle: <strong>${d.leads_found_last ?? 0}</strong>
+      <br><span style="color:var(--muted);margin-top:4px;display:block">Keywords: ${escHtml(kwList)}</span>
+      ${d.error ? `<span style="color:var(--warn)">Last error: ${escHtml(d.error)}</span>` : ''}
+    `;
+  } catch (e) {
+    el.textContent = 'Could not reach backend: ' + e.message;
+  }
 }
 
 // ─── PLATFORM TAB SWITCHER ────────────────────────────────────────────────────
