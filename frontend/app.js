@@ -1,11 +1,4 @@
-**
- * LeadRadar — app.js v3
- * New in this version:
- *  - Stop button cancels streaming search mid-way (no wasted credits)
- *  - Leads appear in real time as they stream in (SSE)
- *  - Progress bar shows queries completed / total
- *  - Facebook Groups tab with Graph API token support
- */
+// LeadRadar — app.js v3
 
 // ─── STORAGE KEYS ────────────────────────────────────────────────────────────
 const KEYS = {
