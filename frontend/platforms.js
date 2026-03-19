@@ -1,7 +1,4 @@
-/**
- * platforms.js — Facebook Pages, Instagram, LinkedIn paste-and-score
- * Loaded after app.js in index.html
- */
+// platforms.js — Facebook Pages, Instagram, LinkedIn paste-and-score
 
 // ─── FACEBOOK PAGES ──────────────────────────────────────────────────────────
 async function scanFacebookPages() {
