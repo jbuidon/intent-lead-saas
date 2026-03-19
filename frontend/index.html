@@ -442,7 +442,7 @@
     <!-- ══ PAGE: PLATFORMS ══ -->
     <div class="page" id="page-facebook">
       <div class="platform-tabs">
-        <button class="platform-tab active" id="ptab-fbgroup"  onclick="switchPlatformTab('fbgroup', this)">👥 FB Groups</button>
+        <button class="platform-tab active" id="ptab-fbgroup"  onclick="switchPlatformTab('fbgroup', this)">🔍 FB Monitor</button>
         <button class="platform-tab"        id="ptab-fbpage"   onclick="switchPlatformTab('fbpage', this)">📘 FB Pages</button>
         <button class="platform-tab"        id="ptab-instagram" onclick="switchPlatformTab('instagram', this)">📸 Instagram</button>
         <button class="platform-tab"        id="ptab-linkedin" onclick="switchPlatformTab('linkedin', this)">💼 LinkedIn</button>
@@ -450,26 +450,20 @@
 
       <!-- ── FB GROUPS panel ── -->
       <div class="platform-panel active" id="panel-fbgroup">
-        <div class="fb-info-box">
-          <h3>👥 Facebook Groups — scan posts &amp; comments from groups you joined</h3>
-          <ol>
-            <li>Go to <a href="https://developers.facebook.com" target="_blank">developers.facebook.com</a> → Create App → Business</li>
-            <li>Add <strong>Facebook Login</strong> as a product</li>
-            <li>Open <a href="https://developers.facebook.com/tools/explorer/" target="_blank">Graph API Explorer</a> → Generate Access Token → add permission: <code>groups_access_member_info</code></li>
-            <li>Paste the token in <strong>⚙ Settings → Facebook Token</strong></li>
-          </ol>
+        <div class="fb-info-box" style="border-color:rgba(255,107,53,0.3);background:rgba(255,107,53,0.05)">
+          <h3>🔍 Facebook Public Post Monitor</h3>
+          <p style="margin-top:6px;color:var(--muted2);font-size:0.85rem">Facebook's Groups API is no longer publicly available. Instead, this tool searches <strong>public Facebook posts</strong> via DuckDuckGo for your keywords — no token required.</p>
         </div>
-        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
-          <button class="btn-secondary" id="loadMyGroupsBtn" onclick="loadMyGroups()" style="font-size:0.8rem;padding:7px 14px">⬇ Load My Groups</button>
-          <span style="font-size:0.75rem;color:var(--muted)">Auto-fill groups you're a member of</span>
-          <span id="myGroupsNote" style="font-size:0.75rem;color:var(--accent);display:none"></span>
+        <div style="margin-bottom:14px">
+          <label style="font-size:0.8rem;color:var(--muted2);display:block;margin-bottom:6px">KEYWORDS TO SEARCH (one per line)</label>
+          <textarea id="fb-keyword-input" style="width:100%;min-height:100px;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:12px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.82rem;resize:vertical" placeholder="web designer&#10;google ads expert&#10;looking for SEO"></textarea>
         </div>
-        <div class="fb-input-row">
-          <textarea id="fb-groups-input" placeholder="https://www.facebook.com/groups/123456789&#10;https://www.facebook.com/groups/mygroupname&#10;(one URL per line — you must be a member)"></textarea>
-          <button class="btn-primary" id="fbScanBtn" onclick="scanFacebookGroups()" style="align-self:flex-start;padding:12px 20px">🔍 Scan Groups</button>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px">
+          <button class="btn-primary" id="fbMonitorBtn" onclick="scanFacebookPublic()" style="padding:11px 22px">🔍 Search Facebook Posts</button>
+          <span style="font-size:0.78rem;color:var(--muted)">Searches public Facebook posts via DuckDuckGo</span>
         </div>
         <div class="error-banner" id="fbError"></div>
-        <div id="fbResults"><div class="empty-state"><span class="empty-icon">👥</span><p>Paste group URLs above and click Scan Groups.</p></div></div>
+        <div id="fbResults"><div class="empty-state"><span class="empty-icon">🔍</span><p>Enter keywords above and click Search Facebook Posts.</p></div></div>
       </div>
 
       <!-- ── FB PAGES panel ── -->
