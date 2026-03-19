@@ -14,20 +14,25 @@ def _get_connection():
             url TEXT NOT NULL,
             intent REAL NOT NULL,
             keyword TEXT DEFAULT '',
+            post_date TEXT DEFAULT '',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    # Add keyword column if upgrading from old schema
-    try:
-        conn.execute("ALTER TABLE leads ADD COLUMN keyword TEXT DEFAULT ''")
-        conn.commit()
-    except Exception:
-        pass  # Column already exists
+    # Add columns if upgrading from old schema
+    for col, definition in [
+        ("keyword", "TEXT DEFAULT ''"),
+        ("post_date", "TEXT DEFAULT ''"),
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE leads ADD COLUMN {col} {definition}")
+            conn.commit()
+        except Exception:
+            pass  # Column already exists
     conn.commit()
     return conn
 
 
-def save_lead(post: str, url: str, intent: float, keyword: str = ""):
+def save_lead(post: str, url: str, intent: float, keyword: str = "", post_date: str = ""):
     with _lock:
         try:
             conn = _get_connection()
@@ -38,8 +43,8 @@ def save_lead(post: str, url: str, intent: float, keyword: str = ""):
             ).fetchone()
             if not existing:
                 conn.execute(
-                    "INSERT INTO leads (post, url, intent, keyword) VALUES (?, ?, ?, ?)",
-                    (post, url, intent, keyword),
+                    "INSERT INTO leads (post, url, intent, keyword, post_date) VALUES (?, ?, ?, ?, ?)",
+                    (post, url, intent, keyword, post_date),
                 )
                 conn.commit()
             conn.close()
@@ -52,7 +57,7 @@ def get_all_leads() -> list[tuple]:
         try:
             conn = _get_connection()
             rows = conn.execute(
-                "SELECT id, post, url, intent, created_at, keyword FROM leads ORDER BY created_at DESC"
+                "SELECT id, post, url, intent, created_at, keyword, post_date FROM leads ORDER BY created_at DESC"
             ).fetchall()
             conn.close()
             return rows
