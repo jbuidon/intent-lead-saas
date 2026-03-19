@@ -57,7 +57,7 @@ def get_all_leads() -> list[tuple]:
         try:
             conn = _get_connection()
             rows = conn.execute(
-                "SELECT id, post, url, intent, created_at, keyword, post_date FROM leads ORDER BY created_at DESC"
+                "SELECT id, post, url, intent, created_at, keyword, post_date FROM leads ORDER BY COALESCE(NULLIF(post_date,''), created_at) DESC"
             ).fetchall()
             conn.close()
             return rows
