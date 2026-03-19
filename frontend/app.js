@@ -1,4 +1,4 @@
-/**
+**
  * LeadRadar — app.js v3
  * New in this version:
  *  - Stop button cancels streaming search mid-way (no wasted credits)
@@ -502,18 +502,13 @@ function appendLead(lead, containerId, providerLabel) {
 }
 
 // ─── FACEBOOK GROUPS SCAN ────────────────────────────────────────────────────
-async function scanFacebookGroups() {
+async function scanFacebookPublic() {
   const s = getSettings();
-  const fbToken    = s.fbtoken;
-  const groupsRaw  = document.getElementById('fb-groups-input').value.trim();
+  const keywordsRaw = document.getElementById('fb-keyword-input').value.trim();
   hideError('fbError');
 
-  if (!fbToken) {
-    showError('fbError', 'No Facebook token configured. Go to ⚙ Settings → Facebook tab.');
-    return;
-  }
-  if (!groupsRaw) {
-    showError('fbError', 'Add at least one Facebook Group URL in the box above.');
+  if (!keywordsRaw) {
+    showError('fbError', 'Enter at least one keyword above.');
     return;
   }
   if (!s.backend) {
@@ -523,45 +518,70 @@ async function scanFacebookGroups() {
 
   const providerKey = currentProvider === 'openai' ? s.openai
                     : currentProvider === 'gemini'  ? s.gemini : s.claude;
+  if (!providerKey) {
+    showError('fbError', `No ${currentProvider} API key. Add it in ⚙ Settings.`);
+    return;
+  }
 
-  const groupUrls = groupsRaw.split('\n').map(u => u.trim()).filter(Boolean);
-
-  const fbBtn = document.getElementById('fbScanBtn');
-  fbBtn.disabled = true;
-  fbBtn.textContent = 'Scanning groups…';
+  const keywords = keywordsRaw.split('\n').map(k => k.trim()).filter(Boolean);
+  const btn = document.getElementById('fbMonitorBtn');
+  btn.disabled = true;
+  btn.textContent = 'Searching…';
 
   const container = document.getElementById('fbResults');
   container.innerHTML = `<div class="loading-state"><div class="pulse-ring"></div>
-    <p>Scanning ${groupUrls.length} group${groupUrls.length !== 1 ? 's' : ''}…</p>
-    <p class="loading-sub">This may take a minute</p></div>`;
+    <p>Searching Facebook public posts for ${keywords.length} keyword${keywords.length !== 1 ? 's' : ''}…</p>
+    <p class="loading-sub">Using DuckDuckGo site:facebook.com search</p></div>`;
+
+  let totalFound = 0;
 
   try {
-    const res = await fetch(`${s.backend}/facebook/scan`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        group_urls:   groupUrls,
-        fb_token:     fbToken,
-        provider:     currentProvider,
+    for (const keyword of keywords) {
+      const params = new URLSearchParams({
+        keyword: `site:facebook.com ${keyword}`,
+        provider: currentProvider,
         provider_key: providerKey,
-      }),
-      signal: AbortSignal.timeout(120000), // 2 min timeout
-    });
+        serp_key: s.serp || '',
+        min_score: '6',
+      });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || `Server error ${res.status}`);
+      const res = await fetch(`${s.backend}/search?${params}`, { signal: AbortSignal.timeout(60000) });
+      if (!res.ok) continue;
+
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const ev = JSON.parse(line.slice(6));
+            if (ev.type === 'lead') {
+              totalFound++;
+              if (container.querySelector('.loading-state, .empty-state')) container.innerHTML = '';
+              const card = buildLeadCard(ev.data);
+              container.insertAdjacentHTML('afterbegin', card);
+            }
+          } catch {}
+        }
+      }
     }
 
-    const results = await res.json();
-    renderFacebookResults(results);
-
+    if (totalFound === 0) {
+      container.innerHTML = `<div class="empty-state"><span class="empty-icon">🔍</span><p>No buyer-intent posts found. Try different keywords.</p></div>`;
+    }
   } catch (e) {
     showError('fbError', e.message);
-    container.innerHTML = '';
+    if (container.querySelector('.loading-state')) container.innerHTML = '';
   } finally {
-    fbBtn.disabled = false;
-    fbBtn.textContent = '🔍 Scan Groups';
+    btn.disabled = false;
+    btn.textContent = '🔍 Search Facebook Posts';
   }
 }
 
@@ -896,49 +916,6 @@ function showResultsToolbar(show) {
 }
 
 // ─── LOAD MY FACEBOOK GROUPS ─────────────────────────────────────────────────
-async function loadMyGroups() {
-  const s = getSettings();
-  const note = document.getElementById('myGroupsNote');
-  const btn  = document.getElementById('loadMyGroupsBtn');
-
-  if (!s.fbtoken) {
-    showError('fbError', 'No Facebook token configured. Go to ⚙ Settings → Facebook Token.');
-    return;
-  }
-  if (!s.backend) {
-    showError('fbError', 'No backend URL. Add it in ⚙ Settings.');
-    return;
-  }
-
-  btn.disabled = true;
-  btn.textContent = 'Loading…';
-  if (note) { note.textContent = ''; note.style.display = 'none'; }
-
-  try {
-    const res = await fetch(`${s.backend}/facebook/my-groups?fb_token=${encodeURIComponent(s.fbtoken)}`, {
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || `Server error ${res.status}`);
-    }
-    const groups = await res.json();
-    if (!groups.length) {
-      if (note) { note.textContent = 'No groups found (token may lack permission).'; note.style.display = 'inline'; }
-      return;
-    }
-    // Populate the textarea with group URLs
-    const urls = groups.map(g => `https://www.facebook.com/groups/${g.id}`).join('\n');
-    document.getElementById('fb-groups-input').value = urls;
-    localStorage.setItem(KEYS.fbgroups, urls);
-    if (note) { note.textContent = `✓ ${groups.length} group${groups.length !== 1 ? 's' : ''} loaded`; note.style.display = 'inline'; }
-  } catch (e) {
-    showError('fbError', 'Could not load groups: ' + e.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '⬇ Load My Groups';
-  }
-}
 
 // ─── SCANNER STATUS ───────────────────────────────────────────────────────────
 async function checkScannerStatus() {
