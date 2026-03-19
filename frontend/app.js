@@ -13,6 +13,7 @@ const KEYS = {
   highonly:   'lr_highonly',
   fbtoken:    'lr_fb_token',
   fbgroups:   'lr_fb_groups',
+  minscore:   'lr_min_score',
 };
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
@@ -89,6 +90,7 @@ function getSettings() {
     highonly: localStorage.getItem(KEYS.highonly)  === 'true',
     fbtoken:  localStorage.getItem(KEYS.fbtoken)  || '',
     fbgroups: localStorage.getItem(KEYS.fbgroups) || '',
+    minscore: parseInt(localStorage.getItem(KEYS.minscore) || '5', 10),
   };
 }
 
@@ -106,6 +108,8 @@ function loadSettingsIntoUI() {
   el('set-defaultprovider').value = s.provider;
   el('set-fbtoken').value  = s.fbtoken  ? mask(s.fbtoken)  : '';
   el('set-fbgroups').value = s.fbgroups || '';
+  const msEl = el('set-minscore');
+  if (msEl) { msEl.value = s.minscore; document.getElementById('minscoreVal').textContent = s.minscore; }
   currentProvider = s.provider;
   updateKeyStatuses(s);
 }
@@ -130,6 +134,8 @@ function saveSettings() {
   localStorage.setItem(KEYS.highonly, el('set-highonly').checked);
   localStorage.setItem(KEYS.provider, el('set-defaultprovider').value);
   localStorage.setItem(KEYS.fbgroups, el('set-fbgroups').value.trim());
+  const minScoreVal = parseInt(el('set-minscore')?.value || '5', 10);
+  localStorage.setItem(KEYS.minscore, minScoreVal);
   currentProvider = el('set-defaultprovider').value;
   const s = getSettings();
   updateKeyStatuses(s);
@@ -142,15 +148,16 @@ function saveSettings() {
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 2500);
 
-  // Sync keywords to backend so scanner picks them up
+  // Sync keywords + min_score to backend so scanner picks them up
   const backendUrl = localStorage.getItem(KEYS.backend) || '';
   const keywordsRaw = document.getElementById('set-keywords').value.trim();
   if (backendUrl && keywordsRaw) {
     const keywords = keywordsRaw.split('\n').map(k => k.trim()).filter(Boolean);
+    const min_score = parseInt(document.getElementById('set-minscore')?.value || '5', 10);
     fetch(`${backendUrl}/keywords`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keywords }),
+      body: JSON.stringify({ keywords, min_score }),
     }).catch(() => {}); // silent — non-critical
   }
 }
@@ -620,6 +627,24 @@ function renderFacebookResults(results) {
 // ─── DAILY LEADS ──────────────────────────────────────────────────────────────
 const DAILY_STORAGE_KEY = 'lr_daily_leads';
 
+async function scanNow() {
+  const s = getSettings();
+  const btn = document.getElementById('scanNowBtn');
+  if (!s.backend) { alert('Add your backend URL in Settings first.'); return; }
+  btn.disabled = true;
+  btn.textContent = '⏳ Scanning…';
+  try {
+    await fetch(`${s.backend}/scanner/run-now`, { method: 'POST', signal: AbortSignal.timeout(10000) });
+    btn.textContent = '✅ Scan started!';
+    setTimeout(() => { btn.textContent = '⚡ Scan Now'; btn.disabled = false; }, 3000);
+    // Auto-refresh leads after ~45s to pick up new results
+    setTimeout(() => loadDailyLeads(), 45000);
+  } catch (e) {
+    btn.textContent = '❌ Failed';
+    setTimeout(() => { btn.textContent = '⚡ Scan Now'; btn.disabled = false; }, 3000);
+  }
+}
+
 function saveDailyLeadsCache(leads) {
   try { localStorage.setItem(DAILY_STORAGE_KEY, JSON.stringify(leads)); } catch(e) {}
 }
@@ -710,9 +735,9 @@ function switchDailyTab(tab, btn) {
 }
 
 function renderDailyTab() {
-  const leads = currentDailyTab === 'high'
-    ? allDailyLeads.filter(l => l.intent_score >= 8)
-    : allDailyLeads;
+  const leads = currentDailyTab === 'high' ? allDailyLeads.filter(l => l.intent_score >= 8)
+              : currentDailyTab === 'mid'  ? allDailyLeads.filter(l => l.intent_score >= 6)
+              : allDailyLeads;
   renderLeads(leads, 'dailyResults', 'stored');
 }
 
