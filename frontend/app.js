@@ -635,7 +635,7 @@ async function loadDailyLeads() {
       post_text:    r.post,
       post_url:     r.url,
       intent_score: r.intent,
-      created_at:   r.created_at,
+      created_at:   r.post_date || r.created_at,
       keyword:      r.keyword || '',
       name: 'Stored Lead',
     }));
